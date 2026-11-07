@@ -18,7 +18,7 @@
 	#define NULLENT -1
 #endif
 /* =============================================================================  */
-/* ========================== CSWPN_Data =======================================  */
+/* ========================== CSOWPN_Data =======================================  */
 #define CSW_SOULREAPEREX CSW_M4A1
 #define WEAPON_REFERENCE "weapon_m4a1"
 #define WEAPON_SPR "weapon_soulreaperex"
@@ -27,7 +27,7 @@
 #define OLD_MDL_REFERENCE "models/w_m4a1.mdl"
 #define REFERENCE_BODY_NUM		0
 /* =============================================================================  */
-/* ========================== SoulReaperex_Resources ============================  */
+/* ========================== Soulreaperex_Resources ============================  */
 // weapons
 #define P_MDL "models/mellowzy/p_soulreaperex.mdl"
 #define V_MDL "models/mellowzy/v_soulreaperexfx_s.mdl"
@@ -49,7 +49,7 @@
 #define SPHERE_SPR "sprites/mellowzy/ef_soulreaperex_sphere.spr"
 #define SPHERE_SPR2 "sprites/mellowzy/ef_soulreaperex_sphere02.spr"
 #define HELIX_SPR_LASER "sprites/mellowzy/ef_soulreaperex_laser.spr"
-#define EF_B_MDL "sprites/mellowzy/ef_soulreaperex_bmode.spr"
+#define EF_B_SPR "sprites/mellowzy/ef_soulreaperex_bmode.spr"
 #define MUZZ_A_SPR "sprites/mellowzy/muzzleflash449.spr"
 #define MUZZ_C_SPR "sprites/mellowzy/muzzleflash453.spr"
 
@@ -72,7 +72,6 @@ new const ExtraSprites[][] =
 #define SPEED_C					1.5
 #define RECOIL					0.75
 
-#define REVIVE_HEALTH 50.0
 
 #define DAMAGEA					15.0
 #define DAMAGE_EXP				25.0
@@ -82,12 +81,26 @@ new const ExtraSprites[][] =
 #define RELOAD_TIME 			2.0
 #define CLIP 					80
 #define BPAMMO 					250
+
+// Arcane Armor (passive)
+#define ARMOR_HITS_TO_ACTIVATE	30		// Bullet hits on enemies needed to activate the armor
+#define ARMOR_RADIUS			250.0	// Blast radius when the armor triggers
+#define ARMOR_DAMAGE			100.0	// Blast damage per enemy
+#define ARMOR_KNOCKBACK			800.0	// Horizontal knockback speed
+#define ARMOR_KNOCKUP			250.0	// Vertical knockback speed
+#define ARMOR_HEAL_PER_ENEMY	20.0	// HP restored per enemy knocked back
+#define ARMOR_HEAL_MAX			60.0	// Max HP restored by a single trigger
+#define ARMOR_MAX_HEALTH		100.0	// Healing never raises HP above this
+#define ARMOR_COOLDOWN			30.0	// Re-activation lock (sec) once it was used more than once in a round
+#define ARMOR_GLOW_R			255
+#define ARMOR_GLOW_G			100
+#define ARMOR_GLOW_B			200
 /* =============================================================================  */
-/* ========================== SoulReaperex_entities_Data ========================  */
+/* ========================== Soulreaperex_Entities_Data ========================  */
 //Classnames
-#define SPHERE_CLASSNAME "EF_Breaperex_sphere"
-#define HELIX_CLASSNAME "EF_Breaperex_helix"
-#define SHOOTA_CLASSNAME "EF_Breaperex_aoe"
+#define SPHERE_CLASSNAME "EF_Soulreaperex_sphere"
+#define HELIX_CLASSNAME "EF_Soulreaperex_helix"
+#define SHOOTA_CLASSNAME "EF_Soulreaperex_aoe"
 #define MUZZLE_A_CLS "mza"
 #define MUZZLE_C_CLS "mzc"
 
@@ -104,20 +117,20 @@ new const ExtraSprites[][] =
 
 //sphere
 #define SPHERE_RADIUS        250.0      // General radius (currently unused, kept for reference)
-#define SPHERE_DETECT_RADIUS 180.0      // Radius to detect enemies
+#define SPHERE_DETECT_RADIUS 220.0      // Radius to detect enemies
 #define SPHERE_MAX           3          // Max hovering spheres
-#define SPHERE_HOVER_HEIGHT  10.0       // Height of the ring center above the player origin
-#define SPHERE_BACK_DIST     30.0       // Distance of the ring behind the player's back
-#define SPHERE_HOVER_RADIUS  35.0       // Radius of the orbit circle
-#define SPHERE_ORBIT_GAP     60.0       // Angle (deg) between 2 spheres on the ring. Smaller = closer together
-#define SPHERE_ORBIT_SPEED   120.0      // Orbit rotation speed (deg/sec)
+#define SPHERE_HOVER_HEIGHT  20.0      // Height of the ring center above the player origin
+#define SPHERE_BACK_DIST     25.0      // Distance of the ring behind the player's back
+#define SPHERE_HOVER_RADIUS  20.0      // Radius of the orbit circle
+#define SPHERE_ORBIT_GAP     120.0      // Angle (deg) between 2 spheres on the ring (360 / SPHERE_MAX = evenly spaced)
+#define SPHERE_ORBIT_SPEED   100.0      // Orbit rotation speed (deg/sec), clockwise seen from behind
 #define SPHERE_MISSILE_SPEED 2048.0      // Speed when launched manually (ATTACK2)
 #define SPHERE_TRACK_SPEED   2048.0      // Speed when auto tracking an enemy (no ATTACK2)
 #define SPHERE_THINK_RATE    0.03       // Think interval (~33 FPS)
 #define SPHERE_SCALE         0.06       // Sprite scale
 #define SPHERE_LIFETIME      3.0        // Max flight time after ATTACK2 launch (sec)
 
-// FIX: float.inc versi baru sudah punya M_PI -> guard supaya tidak redefinisi
+// Newer float.inc already defines M_PI -> guard against redefinition
 #if !defined M_PI
 	#define M_PI 3.14159265358979323846
 #endif
@@ -138,7 +151,8 @@ new const ExtraSprites[][] =
 #define AOE_DAMAGE 15.0
 #define AOE_KNOCKBACK 5.0
 
-#define AOE_DISTANCE   40.0     // Distance in front of the player
+#define AOE_DISTANCE   40.0     // Distance in front of the player (damage center)
+#define AOE_VISUAL_DISTANCE 195.0 // Distance in front of the player where the sprite is drawn (visual only, set in AddToFullPack)
 #define AOE_OFFSET_Z   -10.0    // Lower it a bit so it doesn't cover the camera
 #define AOE_MAX_FRAME  44.0     // Maximum frame of the sprite
 #define AOE_SPEED      1.5      // Animation speed per think tick
@@ -222,7 +236,7 @@ enum
 	ANIM_CHANGECA
 }
 
-new g_ActiveWpn, g_ActiveHelix, g_weapon_event, g_HamBot
+new g_ActiveWpn, g_ActiveHelix, g_ArmorActive, g_LeftHand, g_weapon_event, g_HamBot
 new g_Old_Weapon[33], g_Clip[33], g_ReClip[33]
 new g_ShootCount[33], g_Sphere[33]
 
@@ -230,6 +244,10 @@ new g_MaxPlayers, g_SmokePuff_SprId,g_iExplosionSprite,g_iSpriteLaser
 new bool:isCombo[33]
 new Float:g_Recoil[33][3]
 new Float:g_NextConsume[33], Float:g_NextCharge[33]
+
+// Arcane Armor state
+new g_ArmorHits[33], g_ArmorUses[33]
+new Float:g_ArmorCooldownEnd[33]
 
 new Float:g_flCachedPitch[33];
 new Float:g_flCachedZ[33];
@@ -245,11 +263,12 @@ new g_sphereLaunched[33][SPHERE_MAX];  // 1 = in missile mode
 new Float:g_orbitAngle[33][SPHERE_MAX];
 new Float:g_sphereLaunchTime[33][SPHERE_MAX]; // gametime when the sphere was launched
 /* =============================================================================  */
-/* ========================== Soulreaperex _Init ============================  */
+/* ========================== Soulreaperex_Init ============================  */
 public plugin_init()
 {
 	register_plugin(PLUGIN_NAME, PLUGIN_VERSION, PLUGIN_AUTHOR)
 	register_event("CurWeapon", "Event_CurWeapon", "be", "1=1")
+	register_event("HLTV", "Event_NewRound", "a", "1=0", "2=0")
 
 	g_MaxPlayers = get_maxplayers()
 
@@ -297,7 +316,7 @@ public plugin_precache()
 	util_precache_model(HELIX_MDL2)
 	util_precache_model(MUZZ_A_SPR)
 	util_precache_model(MUZZ_C_SPR)
-	util_precache_model(EF_B_MDL)
+	util_precache_model(EF_B_SPR)
 	g_iExplosionSprite = util_precache_model(EXPLOSION_MDL)
 	g_iSpriteLaser = util_precache_model(HELIX_SPR_LASER)
 
@@ -307,10 +326,9 @@ public plugin_precache()
 	util_precache_sound(SND_SHOOTB_EXP)
 	util_precache_sound(SND_BALLS_APPEAR)
 
-	if(file_exists(AOE_SPR)) engfunc(EngFunc_PrecacheModel, AOE_SPR)
-	if(file_exists(SPHERE_SPR)) engfunc(EngFunc_PrecacheModel, SPHERE_SPR)
-	if(file_exists(SPHERE_SPR2)) engfunc(EngFunc_PrecacheModel, SPHERE_SPR2)
-	if(file_exists(HELIX_SPR_LASER)) engfunc(EngFunc_PrecacheModel, HELIX_SPR_LASER)
+	util_precache_model(AOE_SPR)
+	util_precache_model(SPHERE_SPR)
+	util_precache_model(SPHERE_SPR2)
 
 #if PrecacheSoundsFromModel == 1
 	util_precache_sounds_from_model(V_MDL);
@@ -327,7 +345,7 @@ public plugin_precache()
 }
 
 /* =============================================================================  */
-/* ========================== Soulreaperex_CurWeap ============================  */
+/* ========================== Soulreaperex_CurWeapon ============================  */
 public Event_CurWeapon(id)
 {
 	if(!is_user_alive(id))
@@ -345,9 +363,21 @@ public Event_CurWeapon(id)
 	g_Old_Weapon[id] = csw
 }
 
+// New round: reset the per-round Arcane Armor usage and cooldown
+public Event_NewRound()
+{
+	for(new i = 1; i <= g_MaxPlayers; i++)
+	{
+		g_ArmorUses[i] = 0
+		g_ArmorCooldownEnd[i] = 0.0
+	}
+}
+
 public client_putinserver(id)
 {
 	g_flCachedZ[id] = -9999.0
+	UnSet_BitVar(g_LeftHand, id)
+	Query_RightHand(id)
 
 	if(!g_HamBot && is_user_bot(id))
 	{
@@ -365,8 +395,9 @@ public Do_RegisterHam_Bot(id)
 
 public client_disconnected(id)
 {
-	// FIX: remove_sphere() menggeser array, jadi loop 0..MAX melewati slot.
-	// CSOWPN_Remove -> ResetPlayer sekarang sudah membersihkan semua sphere.
+	UnSet_BitVar(g_LeftHand, id)
+	// remove_sphere() shifts the array, so a plain 0..MAX loop would skip slots.
+	// CSOWPN_Remove -> ResetPlayer already clears every sphere safely.
 	CSOWPN_Remove(id)
 }
 
@@ -444,6 +475,10 @@ ResetPlayer(id)
 	g_NextCharge[id] = 0.0
 	g_flCachedPitch[id] = 0.0
 	g_flCachedZ[id] = -9999.0
+
+	Armor_Reset(id)
+	g_ArmorUses[id] = 0
+	g_ArmorCooldownEnd[id] = 0.0
 }
 
 SetViewModel(id)
@@ -522,6 +557,7 @@ public fw_SetModel(entity, const model[])
 
 			UnSet_BitVar(g_ActiveWpn, iOwner)
 			UnSet_BitVar(g_ActiveHelix, iOwner)
+			Armor_Reset(iOwner)
 
 			return FMRES_SUPERCEDE
 		}
@@ -560,9 +596,9 @@ public fw_AddToFullPack_Post(es, e, ent, host, flags, player, pSet)
 		vFwd[2] = floatsin(flPitchRad, radian)
 
 		new Float:vFinalPos[3]
-		vFinalPos[0] = vBaseOrigin[0] + vFwd[0] * 250.0
-		vFinalPos[1] = vBaseOrigin[1] + vFwd[1] * 250.0
-		vFinalPos[2] = vBaseOrigin[2] + vFwd[2] * 250.0 + 0.0
+		vFinalPos[0] = vBaseOrigin[0] + vFwd[0] * AOE_VISUAL_DISTANCE
+		vFinalPos[1] = vBaseOrigin[1] + vFwd[1] * AOE_VISUAL_DISTANCE
+		vFinalPos[2] = vBaseOrigin[2] + vFwd[2] * AOE_VISUAL_DISTANCE + 0.0
 
 		if (vFinalPos[2] < flMinZ && flMinZ != -9999.0)
 		{
@@ -577,7 +613,7 @@ public fw_AddToFullPack_Post(es, e, ent, host, flags, player, pSet)
 		set_es(es, ES_Origin, vFinalPos)
 		set_es(es, ES_Angles, vAngles)
 		set_es(es, ES_MoveType, MOVETYPE_NONE)
-		set_es(es, ES_AimEnt, id)
+		set_es(es, ES_AimEnt, 0)
 		set_es(es, ES_Effects, get_es(es, ES_Effects) | EF_NOINTERP)
 
 		return FMRES_IGNORED
@@ -587,8 +623,9 @@ public fw_AddToFullPack_Post(es, e, ent, host, flags, player, pSet)
         new id = pev(ent, pev_owner)
         if (id < 1 || id > 32 || !is_user_alive(id)) return FMRES_IGNORED
 
-        new wpn = get_pdata_cbase(id, m_pActiveItem, 5)
-        if (is_nullent(wpn) || pev(wpn, pev_impulse) != WEAPON_IMPULSE) {
+        // g_ActiveWpn is the source of truth: the weapon's pev_impulse is reset to 0
+        // in AddToPlayer_Post, so comparing it with WEAPON_IMPULSE is always false.
+        if (!Get_BitVar(g_ActiveWpn, id) || get_user_weapon(id) != CSW_SOULREAPEREX) {
             set_es(es, ES_RenderAmt, 0.0)
             set_es(es, ES_Effects, get_es(es, ES_Effects) | EF_NODRAW)
             return FMRES_IGNORED
@@ -602,10 +639,15 @@ public fw_AddToFullPack_Post(es, e, ent, host, flags, player, pSet)
         global_get(glb_v_right, vRight)
         global_get(glb_v_up, vUp)
 
+        // Mirror the sideways offset for left-handed players (cl_righthand 0)
+        new Float:flRightOffset = EF_B_OFFSET_RIGHT
+        if (Get_BitVar(g_LeftHand, id))
+            flRightOffset = -flRightOffset
+
         new Float:vFinalPos[3]
-        vFinalPos[0] = vBaseOrigin[0] + (vForward[0] * EF_B_OFFSET_FORWARD) + (vRight[0] * EF_B_OFFSET_RIGHT) + (vUp[0] * EF_B_OFFSET_UP)
-        vFinalPos[1] = vBaseOrigin[1] + (vForward[1] * EF_B_OFFSET_FORWARD) + (vRight[1] * EF_B_OFFSET_RIGHT) + (vUp[1] * EF_B_OFFSET_UP)
-        vFinalPos[2] = vBaseOrigin[2] + (vForward[2] * EF_B_OFFSET_FORWARD) + (vRight[2] * EF_B_OFFSET_RIGHT) + (vUp[2] * EF_B_OFFSET_UP)
+        vFinalPos[0] = vBaseOrigin[0] + (vForward[0] * EF_B_OFFSET_FORWARD) + (vRight[0] * flRightOffset) + (vUp[0] * EF_B_OFFSET_UP)
+        vFinalPos[1] = vBaseOrigin[1] + (vForward[1] * EF_B_OFFSET_FORWARD) + (vRight[1] * flRightOffset) + (vUp[1] * EF_B_OFFSET_UP)
+        vFinalPos[2] = vBaseOrigin[2] + (vForward[2] * EF_B_OFFSET_FORWARD) + (vRight[2] * flRightOffset) + (vUp[2] * EF_B_OFFSET_UP)
 
         set_es(es, ES_Origin, vFinalPos)
         set_es(es, ES_MoveType, MOVETYPE_NONE)
@@ -816,6 +858,9 @@ public fw_TraceAttack_Player(Victim, Attacker, Float:Damage, Float:Direction[3],
 	if(Get_BitVar(g_ActiveHelix, Attacker))
 		return HAM_IGNORED
 
+	// Every bullet that hits an enemy charges the Arcane Armor
+	Armor_AddHit(Attacker)
+
 	SetHamParamFloat(3, random_float(DAMAGEA, DAMAGEA * 2.0))
 
 	return HAM_IGNORED
@@ -881,16 +926,16 @@ public Ham_CWeapon_PostFrame_Pre(ent)
 	if(get_pdata_int(ent, m_Weapon_fInReload, linux_diff_weapon) && get_pdata_float(id, m_flNextAttack, linux_diff_player) <= 0.0)
 	{
 		new iClip = get_pdata_int(ent, m_Weapon_iClip, linux_diff_weapon)
-		new iBp = cs_get_user_bpammo(id, CSW_EF_BREAPEREX)
+		new iBp = cs_get_user_bpammo(id, CSW_SOULREAPEREX)
 		new j = min(CLIP - iClip, iBp)
 
 		set_pdata_int(ent, m_Weapon_iClip, iClip + j, linux_diff_weapon)
-		cs_set_user_bpammo(id, CSW_EF_BREAPEREX, iBp - j)
+		cs_set_user_bpammo(id, CSW_SOULREAPEREX, iBp - j)
 		set_pdata_int(ent, m_Weapon_fInReload, 0, linux_diff_weapon)
 	}
 
 	// Helix charge: consume while active, refill while inactive
-	CWeapon_HelixThink(id)
+	CWeapon_HelixThink(id, ent)
 
 	new ibutton = pev(id, pev_button)
 	CWeapon_Soulreaperex(id, ent, ibutton)
@@ -1050,18 +1095,26 @@ public fw_TakeDamage_Pre(victim, inflictor, attacker, Float:damage, damagebits)
 	if(damagebits & DMG_FALL)
 		return HAM_SUPERCEDE
 
+	// Arcane Armor only reacts while it is active
+	if(!Get_BitVar(g_ArmorActive, victim))
+		return HAM_IGNORED
+
 	new Float:flHealth
 	pev(victim, pev_health, flHealth)
 
 	if(flHealth <= 0.0)
 		return HAM_IGNORED
 
-	set_pev(victim, pev_health, REVIVE_HEALTH)
+	// Only intervene when this hit would bring HP down to 0 or below
+	if(flHealth - damage > 0.0)
+		return HAM_IGNORED
+
+	// Block the lethal hit and release the armor blast
+	Armor_Trigger(victim)
 	return HAM_SUPERCEDE
 }
 
-/* ========================== 
-SoulReaperex_WpnSys ============================  */
+/* ========================== Soulreaperex_WpnSys ============================  */
 CWeapon_Soulreaperex(id, ent, button)
 {
 	if(!IsValidPev(ent)) return
@@ -1132,7 +1185,7 @@ CWeapon_StartHelix(id, ent)
 // Called every frame from PostFrame_Pre.
 // Helix active   : consume charge every HELIX_CONSUME_TIME, leave helix mode when it reaches 0.
 // Helix inactive : refill charge every HELIX_REFILL_TIME until HELIX_MAX_CHARGE.
-CWeapon_HelixThink(id)
+CWeapon_HelixThink(id, ent)
 {
 	new Float:flTime = get_gametime()
 	new iCharge = GetSecondaryAmmo(id)
@@ -1154,7 +1207,7 @@ CWeapon_HelixThink(id)
 
 			SetViewModel(id)
 			util_sendweaponanim(id, ANIM_CHANGECA)
-			//TO DO: tambah set_pdata_float(ent, m_Weapon_flTimeWeaponIdle, 1.5, linux_diff_weapon)
+			set_pdata_float(ent, m_Weapon_flTimeWeaponIdle, 1.5, linux_diff_weapon)
 
 			// Start refilling after the full refill delay
 			g_NextCharge[id] = flTime + HELIX_REFILL_TIME
@@ -1173,6 +1226,110 @@ CWeapon_HelixThink(id)
 
 /* =============================================================================  */
 
+/* ========================== Soulreaperex_ArcaneArmor ============================  */
+// Count one bullet hit; activates the armor when enough hits were landed
+Armor_AddHit(id)
+{
+	if(Get_BitVar(g_ArmorActive, id))
+		return
+
+	// Re-activation is locked while the cooldown is running
+	if(get_gametime() < g_ArmorCooldownEnd[id])
+		return
+
+	g_ArmorHits[id]++
+
+	if(g_ArmorHits[id] >= ARMOR_HITS_TO_ACTIVATE)
+		Armor_Activate(id)
+}
+
+Armor_Activate(id)
+{
+	Set_BitVar(g_ArmorActive, id)
+	g_ArmorHits[id] = 0
+
+	// Glow while the armor is ready
+	fm_set_rendering(id, kRenderFxGlowShell, ARMOR_GLOW_R, ARMOR_GLOW_G, ARMOR_GLOW_B, kRenderNormal, 16)
+	client_print(id, print_center, "Arcane Armor activated")
+}
+
+// Clears the armor state and glow (the per-round counters are handled by the callers)
+Armor_Reset(id)
+{
+	if(Get_BitVar(g_ArmorActive, id) && is_user_connected(id))
+		fm_set_rendering(id)
+
+	UnSet_BitVar(g_ArmorActive, id)
+	g_ArmorHits[id] = 0
+}
+
+// A lethal hit was blocked: damage and knock back nearby enemies, then heal per enemy hit
+Armor_Trigger(id)
+{
+	new Float:flTime = get_gametime()
+
+	Armor_Reset(id)
+
+	// First use in a round has no lock; from the second use on, re-activation is locked
+	g_ArmorUses[id]++
+	if(g_ArmorUses[id] >= 2)
+		g_ArmorCooldownEnd[id] = flTime + ARMOR_COOLDOWN
+
+	new Float:vOrigin[3]
+	pev(id, pev_origin, vOrigin)
+
+	new iHit = 0
+
+	for(new p = 1; p <= g_MaxPlayers; p++)
+	{
+		if(!sphere_is_enemy(id, p))
+			continue
+
+		new Float:vTarget[3]
+		pev(p, pev_origin, vTarget)
+
+		if(get_distance_f(vOrigin, vTarget) > ARMOR_RADIUS)
+			continue
+
+		// Horizontal push away from the owner
+		new Float:vDir[3]
+		xs_vec_sub(vTarget, vOrigin, vDir)
+		vDir[2] = 0.0
+
+		if(vector_length(vDir) < 1.0)
+			vDir[0] = 1.0
+
+		xs_vec_normalize(vDir, vDir)
+
+		new Float:vVel[3]
+		vVel[0] = vDir[0] * ARMOR_KNOCKBACK
+		vVel[1] = vDir[1] * ARMOR_KNOCKBACK
+		vVel[2] = ARMOR_KNOCKUP
+
+		ExecuteHamB(Ham_TakeDamage, p, id, id, ARMOR_DAMAGE, DMG_BLAST)
+
+		// The victim may have died from the blast; only push the living
+		if(is_user_alive(p))
+			set_pev(p, pev_velocity, vVel)
+
+		iHit++
+	}
+
+	Create_Explosion(vOrigin)
+
+	if(iHit > 0)
+	{
+		new Float:flHeal = floatmin(float(iHit) * ARMOR_HEAL_PER_ENEMY, ARMOR_HEAL_MAX)
+		new Float:flHealth
+		pev(id, pev_health, flHealth)
+
+		set_pev(id, pev_health, floatmin(flHealth + flHeal, ARMOR_MAX_HEALTH))
+	}
+
+	client_print(id, print_center, "Arcane Armor triggered")
+}
+
+/* =============================================================================  */
 /* ========================== Soulreaperex_Entities ============================  */
 do_ShootAoe(id)
 {
@@ -1719,7 +1876,7 @@ public do_Helix(id) {
     message_end()
 
     for (new i = 1; i <= 32; i++) {
-        if (!is_user_alive(i) || i == id) continue
+        if (!sphere_is_enemy(id, i)) continue
         pev(i, pev_origin, vTarget)
 
         new Float:vDirToTarget[3]
@@ -1770,13 +1927,35 @@ public Entity_Think_Helix(ent) {
     set_pev(ent, pev_nextthink, get_gametime() + (1.0 / HELIX_ANIM_FRAMERATE))
 }
 
+// cl_righthand is a client cvar, so the server has to ask for it
+Query_RightHand(id)
+{
+	if(is_user_connected(id) && !is_user_bot(id))
+		query_client_cvar(id, "cl_righthand", "Cvar_RightHand_Result")
+}
+
+public Cvar_RightHand_Result(id, const cvar[], const value[])
+{
+	if(!is_user_connected(id))
+		return
+
+	// cl_righthand 0 = left-handed view model
+	if(str_to_num(value) == 0)
+		Set_BitVar(g_LeftHand, id)
+	else
+		UnSet_BitVar(g_LeftHand, id)
+}
+
 public EF_BMode(id) {
     if (!CanCreateEntity()) return
+
+    // Refresh the handedness; the result arrives well before the sprite expires
+    Query_RightHand(id)
     new spr = engfunc(EngFunc_CreateNamedEntity, engfunc(EngFunc_AllocString, "env_sprite"))
     if (!pev_valid(spr)) return
 
     set_pev(spr, pev_classname, EF_B_CLASSNAME)
-    engfunc(EngFunc_SetModel, spr, EF_B_MDL)
+    engfunc(EngFunc_SetModel, spr, EF_B_SPR)
     set_pev(spr, pev_spawnflags, SF_SPRITE_ONCE)
     dllfunc(DLLFunc_Spawn, spr)
 
@@ -1801,14 +1980,14 @@ public Entity_Think_EF_BMode(ent) {
     new id = pev(ent, pev_owner)
     if (id < 1 || id > 32 || !is_user_alive(id)) { engfunc(EngFunc_RemoveEntity, ent); return; }
 
-    new wpn = get_pdata_cbase(id, m_pActiveItem, 5)
-    if (is_nullent(wpn) || pev(wpn, pev_impulse) != WEAPON_IMPULSE) { engfunc(EngFunc_RemoveEntity, ent); return; }
+    // Same reason as in fw_AddToFullPack_Post: use g_ActiveWpn, not the weapon's pev_impulse
+    if (!Get_BitVar(g_ActiveWpn, id) || get_user_weapon(id) != CSW_SOULREAPEREX) { engfunc(EngFunc_RemoveEntity, ent); return; }
 
     set_pev(ent, pev_nextthink, get_gametime() + 0.1)
 }
 /* =============================================================================  */
 /* =============================================================================  */
-/* ========================== EF_Breperex_Stocks ============================  */
+/* ========================== Soulreaperex_Stocks ============================  */
 stock UTIL_WeaponList(client_index, bool: bEnabled)
 {
 	static iMsgId_Weaponlist
@@ -2180,11 +2359,6 @@ stock Create_Explosion(Float:origin[3], iScale = 10, iFramerate = 15)
 
 stock bool:CanCreateEntity() {
     return (global_get(glb_maxEntities) - engfunc(EngFunc_NumberOfEntities) >= 100)
-}
-
-stock bool:is_nullent(const ent)
-{
-    return (ent <= 0 || ent == FM_NULLENT)
 }
 
 /* =============================================================================  */
