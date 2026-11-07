@@ -107,7 +107,7 @@ new const ExtraSprites[][] =
 
 //sphere
 #define SPHERE_RADIUS        250.0      // General radius (currently unused, kept for reference)
-#define SPHERE_DETECT_RADIUS 400.0      // Radius to detect enemies
+#define SPHERE_DETECT_RADIUS 180.0      // Radius to detect enemies
 #define SPHERE_MAX           3          // Max hovering spheres
 #define SPHERE_HOVER_HEIGHT  10.0       // Height of the ring center above the player origin
 #define SPHERE_BACK_DIST     30.0       // Distance of the ring behind the player's back
@@ -116,7 +116,6 @@ new const ExtraSprites[][] =
 #define SPHERE_ORBIT_SPEED   120.0      // Orbit rotation speed (deg/sec)
 #define SPHERE_MISSILE_SPEED 2048.0      // Speed when launched manually (ATTACK2)
 #define SPHERE_TRACK_SPEED   2048.0      // Speed when auto tracking an enemy (no ATTACK2)
-#define SPHERE_MISSILE_DMG   35.0       // Damage dealt to the target
 #define SPHERE_THINK_RATE    0.03       // Think interval (~33 FPS)
 #define SPHERE_SCALE         0.06       // Sprite scale
 #define SPHERE_LIFETIME      3.0        // Max flight time after ATTACK2 launch (sec)
@@ -142,6 +141,10 @@ new const ExtraSprites[][] =
 #define HELIX_FRAMEMAX 44.0
 #define HELIX_RANGE 120.0
 #define HELIX_DAMAGE 15.0
+#define HELIX_BEAM_DAMAGE 2500.0
+#define HELIX_BEAM_PULL 6500.0
+#define HELIX_BEAM_RADIUS 150.0
+#define HELIX_BEAM_LENGTH 800.0
 #define HELIX_KNOCKBACK 5.0
 #define HELIX_MAX_CHARGE 110		// secondary ammo (charge) capacity
 #define HELIX_MIN_CHARGE HELIX_MAX_CHARGE	// charge needed to activate helix (full by default)
@@ -150,6 +153,9 @@ new const ExtraSprites[][] =
 #define HELIX_CONSUME_TIME 0.6		// seconds between each consume tick
 #define HELIX_CONSUME_AMOUNT 10		// charge consumed per consume tick
 #define HELIX_CHANGE_TIME 1.0		// attack lock while switching to helix mode
+#define HELIX_BEAM_DELAY 0.8
+#define HELIX_BEAM_WIDTH        50.0          
+#define HELIX_ANIM_FRAMERATE    20.0  
 
 /* =============================================================================  */
 /* ========================== Offset_and_macro's ============================  */
@@ -212,7 +218,7 @@ new g_ActiveWpn, g_ActiveHelix, g_weapon_event, g_HamBot
 new g_Old_Weapon[33], g_Clip[33], g_ReClip[33]
 new g_ShootCount[33], g_Sphere[33]
 
-new g_MaxPlayers, g_SmokePuff_SprId,g_iExplosionSprite
+new g_MaxPlayers, g_SmokePuff_SprId,g_iExplosionSprite,g_iSpriteLaser
 new bool:isCombo[33]
 new Float:g_Recoil[33][3]
 new Float:g_NextConsume[33], Float:g_NextCharge[33]
@@ -284,6 +290,7 @@ public plugin_precache()
 	util_precache_model(MUZZ_A_SPR)
 	util_precache_model(MUZZ_C_SPR)
 	g_iExplosionSprite = util_precache_model(EXPLOSION_MDL)
+	g_iSpriteLaser = util_precache_model(HELIX_SPR_LASER)
 
 	util_precache_sound(SND_SHOOTA)
 	util_precache_sound(SND_SHOOTB)
@@ -579,6 +586,13 @@ public fw_Entity_Think(ent)
 	pev(ent, pev_classname, classname, charsmax(classname))
 
 	static iOwner; iOwner = pev(ent, pev_owner)
+	
+	
+	if(equal(classname, HELIX_CLASSNAME))
+	{
+		Entity_Think_Helix(ent)
+		return FMRES_IGNORED
+	}
 
 	if(equal(classname, SPHERE_CLASSNAME))
 	{
@@ -920,7 +934,8 @@ public Ham_CWeapon_PrimaryAttack_Post(ent)
 		util_sendweaponanim(id, ANIM_SHOOTC)
 		Stock_Muzzle(id, MUZZLE_C_CLS, MUZZ_C_SPR, 0.16)
 		emit_sound(id, CHAN_WEAPON, SND_SHOOTC, VOL_NORM, ATTN_NORM, 0, PITCH_NORM)
-
+		do_Helix(id)
+		
 		set_pdata_float(ent, m_Weapon_flNextPrimaryAttack, SPEED_C, linux_diff_weapon)
 		set_pdata_float(ent, m_Weapon_flNextSecondaryAttack, SPEED_C, linux_diff_weapon)
 		set_pdata_float(ent, m_Weapon_flTimeWeaponIdle, SPEED_C, linux_diff_weapon)
@@ -1047,6 +1062,7 @@ CWeapon_StartHelix(id, ent)
 	g_NextConsume[id] = get_gametime() + HELIX_CONSUME_TIME
 
 	SetViewModel(id)
+	do_Helix(id)
 	util_sendweaponanim(id, ANIM_SHOOTC)
 	emit_sound(id, CHAN_WEAPON, SND_SHOOTC, VOL_NORM, ATTN_NORM, 0, PITCH_NORM)
 	Stock_Muzzle(id, MUZZLE_C_CLS, MUZZ_C_SPR, 0.16)
@@ -1251,6 +1267,7 @@ update_orbit(ent, id, slot)
 	if (target > 0)
 	{
 		sphere_chase(ent, id, slot, target, SPHERE_TRACK_SPEED)
+		
 		return
 	}
 
@@ -1359,7 +1376,7 @@ update_missile(ent, id, slot)
 		pev(ent, pev_origin, eOrigin)
 	
 		Create_Explosion(eOrigin)
-		do_Sphere_Damage(id, eOrigin, SPHERE_RADIUS, SPHERE_MISSILE_DMG)
+		do_Sphere_Damage(id, eOrigin, SPHERE_RADIUS, DAMAGE_EXP)
 		remove_sphere(id, slot)
 	}
 }
@@ -1372,7 +1389,7 @@ sphere_hit(ent, id, slot, target)
 	
 	Create_Explosion(eOrigin)
 	
-	do_Sphere_Damage(id, eOrigin, SPHERE_RADIUS, SPHERE_MISSILE_DMG)
+	do_Sphere_Damage(id, eOrigin, SPHERE_RADIUS, DAMAGE_EXP)
 
 	emit_sound(ent, CHAN_ITEM, SND_SHOOTB_EXP, 1.0, ATTN_NORM, 0, PITCH_NORM)
 	remove_sphere(id, slot)
@@ -1549,6 +1566,144 @@ do_Sphere_Damage(id, Float:vecOrigin[3], Float:Rad, Float:Dmg)
 	if(!IsValidPev(id)) return
 	
 	Radius_Damage(id, id, vecOrigin, Rad, Dmg, DMG_BULLET | DMG_NEVERGIB)
+}
+
+public do_Helix(id) {
+    if (!CanCreateEntity()) return
+    new Float:vOrigin[3], Float:vAngle[3], Float:vForward[3]
+    pev(id, pev_origin, vOrigin);
+    pev(id, pev_v_angle, vAngle)
+    engfunc(EngFunc_MakeVectors, vAngle); global_get(glb_v_forward, vForward)
+
+    new Float:vSpawnOrigin[3]
+    vSpawnOrigin[0] = vOrigin[0];
+    vSpawnOrigin[1] = vOrigin[1]; vSpawnOrigin[2] = vOrigin[2] + 15.0
+
+    new Float:vBeamAngles[3]
+    vBeamAngles[0] = -vAngle[0];
+    vBeamAngles[1] = vAngle[1]; vBeamAngles[2] = vAngle[2]
+
+    new Float:vTarget[3], Float:vEnd[3]
+    vEnd[0] = vOrigin[0] + vForward[0] * HELIX_BEAM_LENGTH
+    vEnd[1] = vOrigin[1] + vForward[1] * HELIX_BEAM_LENGTH
+    vEnd[2] = vOrigin[2] + vForward[2] * HELIX_BEAM_LENGTH
+
+    for (new i = 0; i < 2; i++) {
+        new helixA = engfunc(EngFunc_CreateNamedEntity, engfunc(EngFunc_AllocString, "env_sprite"))
+        if (pev_valid(helixA)) {
+            engfunc(EngFunc_SetModel, helixA, HELIX_MDL2)
+            set_pev(helixA, pev_classname, HELIX_CLASSNAME)
+            set_pev(helixA, pev_spawnflags, SF_SPRITE_ONCE)
+            dllfunc(DLLFunc_Spawn, helixA)
+            set_pev(helixA, pev_solid, SOLID_NOT)
+            set_pev(helixA, pev_movetype, MOVETYPE_NONE)
+
+            new Float:flOffset = 60.0 + (float(i) * 250.0), Float:vPos[3]
+            vPos[0] = vSpawnOrigin[0] + vForward[0] * flOffset
+            vPos[1] = vSpawnOrigin[1] + vForward[1] * flOffset
+            vPos[2] = vSpawnOrigin[2] + vForward[2] * flOffset
+            engfunc(EngFunc_SetOrigin, helixA, vPos)
+			
+			Radius_Damage(id, id, vPos, HELIX_BEAM_RADIUS, HELIX_DAMAGE, DMG_BULLET | DMG_NEVERGIB)
+			
+            set_pev(helixA, pev_angles, vBeamAngles)
+            set_pev(helixA, pev_rendermode, kRenderTransAdd)
+            set_pev(helixA, pev_renderamt, 255.0)
+            set_pev(helixA, pev_skin, 0); set_pev(helixA, pev_iuser1, 0); set_pev(helixA, pev_iuser2, 1)
+            set_pev(helixA, pev_owner, id)
+            set_pev(helixA, pev_nextthink, get_gametime() + (1.0 / HELIX_ANIM_FRAMERATE))
+        }
+    }
+
+    new helixB = engfunc(EngFunc_CreateNamedEntity, engfunc(EngFunc_AllocString, "env_sprite"))
+    if (pev_valid(helixB)) {
+        engfunc(EngFunc_SetModel, helixB, HELIX_MDL1)
+        set_pev(helixB, pev_classname, HELIX_CLASSNAME)
+        set_pev(helixB, pev_spawnflags, SF_SPRITE_ONCE)
+        dllfunc(DLLFunc_Spawn, helixB)
+        set_pev(helixB, pev_solid, SOLID_NOT);
+        set_pev(helixB, pev_movetype, MOVETYPE_NONE)
+
+        new Float:flOffset = 60.0 + (2.0 * 250.0), Float:vPos[3]
+        vPos[0] = vSpawnOrigin[0] + vForward[0] * flOffset
+        vPos[1] = vSpawnOrigin[1] + vForward[1] * flOffset
+        vPos[2] = vSpawnOrigin[2] + vForward[2] * flOffset
+        engfunc(EngFunc_SetOrigin, helixB, vPos)
+		
+		Radius_Damage(id, id, vPos, HELIX_BEAM_RADIUS, HELIX_DAMAGE, DMG_BULLET | DMG_NEVERGIB)
+		
+        set_pev(helixB, pev_angles, vBeamAngles)
+        set_pev(helixB, pev_rendermode, kRenderTransAdd);
+        set_pev(helixB, pev_renderamt, 255.0)
+        set_pev(helixB, pev_skin, 0); set_pev(helixB, pev_iuser1, 0);
+        set_pev(helixB, pev_iuser2, 2)
+        set_pev(helixB, pev_owner, id)
+        set_pev(helixB, pev_nextthink, get_gametime() + (1.0 / HELIX_ANIM_FRAMERATE))
+    }
+
+    engfunc(EngFunc_MessageBegin, MSG_PAS, SVC_TEMPENTITY, vSpawnOrigin, 0)
+    write_byte(0) 
+    engfunc(EngFunc_WriteCoord, vSpawnOrigin[0]);
+    engfunc(EngFunc_WriteCoord, vSpawnOrigin[1]); engfunc(EngFunc_WriteCoord, vSpawnOrigin[2])
+    engfunc(EngFunc_WriteCoord, vEnd[0]); engfunc(EngFunc_WriteCoord, vEnd[1]);
+    engfunc(EngFunc_WriteCoord, vEnd[2])
+    write_short(g_iSpriteLaser)
+    write_byte(0); write_byte(30); write_byte(10); write_byte(180)
+    write_byte(0); write_byte(255); write_byte(255);
+    write_byte(255)
+    write_byte(255); write_byte(20)
+    message_end()
+
+    for (new i = 1; i <= 32; i++) {
+        if (!is_user_alive(i) || i == id) continue
+        pev(i, pev_origin, vTarget)
+
+        new Float:vDirToTarget[3]
+        vDirToTarget[0] = vTarget[0] - vOrigin[0]
+        vDirToTarget[1] = vTarget[1] - vOrigin[1]
+        vDirToTarget[2] = vTarget[2] - vOrigin[2]
+
+        new Float:flDistanceAlongBeam = xs_vec_dot(vDirToTarget, vForward)
+
+        if (flDistanceAlongBeam > 0.0 && flDistanceAlongBeam < HELIX_BEAM_LENGTH) {
+            new Float:vProj[3]
+            vProj[0] = vOrigin[0] + vForward[0] * flDistanceAlongBeam
+            vProj[1] = vOrigin[1] + vForward[1] * flDistanceAlongBeam
+            vProj[2] = vOrigin[2] + vForward[2] * flDistanceAlongBeam
+
+            new Float:flDistToBeam = get_distance_f(vTarget, vProj)
+
+            if (flDistToBeam <= HELIX_BEAM_RADIUS) {
+                ExecuteHamB(Ham_TakeDamage, i, id, id, HELIX_BEAM_DAMAGE, DMG_ENERGYBEAM)
+                new Float:vPull[3]
+                vPull[0] = vProj[0] - vTarget[0];
+                vPull[1] = vProj[1] - vTarget[1]; vPull[2] = vProj[2] - vTarget[2]
+                vPull[0] -= vForward[0] * 0.5 * flDistToBeam;
+                vPull[1] -= vForward[1] * 0.5 * flDistToBeam
+                xs_vec_normalize(vPull, vPull)
+
+                new Float:flPullStrength = HELIX_BEAM_PULL * (1.0 - (flDistToBeam / HELIX_BEAM_RADIUS))
+                new Float:vVel[3];
+                pev(i, pev_velocity, vVel)
+                vVel[0] = vVel[0] * 0.2 + vPull[0] * flPullStrength
+                vVel[1] = vVel[1] * 0.2 + vPull[1] * flPullStrength
+                vVel[2] = vVel[2] * 0.2 + vPull[2] * flPullStrength * 0.2
+                set_pev(i, pev_velocity, vVel)
+            }
+        }
+    }
+}
+
+public Entity_Think_Helix(ent) {
+    if (!pev_valid(ent)) return
+    new id = pev(ent, pev_owner)
+    if (id < 1 || id > 32 || !is_user_alive(id)) { engfunc(EngFunc_RemoveEntity, ent); return; }
+
+    new iSkin = pev(ent, pev_iuser1)
+    if (iSkin >= 14) { engfunc(EngFunc_RemoveEntity, ent); return; }
+
+    set_pev(ent, pev_skin, iSkin); set_pev(ent, pev_iuser1, iSkin + 1)
+    set_pev(ent, pev_nextthink, get_gametime() + (1.0 / HELIX_ANIM_FRAMERATE))
 }
 
 
@@ -1922,4 +2077,9 @@ stock Create_Explosion(Float:origin[3], iScale = 10, iFramerate = 15)
     
     message_end();
 }
+
+stock bool:CanCreateEntity() {
+    return (global_get(glb_maxEntities) - engfunc(EngFunc_NumberOfEntities) >= 100)
+}
+
 /* =============================================================================  */
