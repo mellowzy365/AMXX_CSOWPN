@@ -19,7 +19,7 @@
 #endif
 /* =============================================================================  */
 /* ========================== CSWPN_Data =======================================  */
-#define CSW_SOULREAPEREX CSW_M4A1
+#define CSW_EF_BREAPEREX CSW_M4A1
 #define WEAPON_REFERENCE "weapon_m4a1"
 #define WEAPON_SPR "weapon_soulreaperex"
 #define WEAPON_IMPULSE 3399012
@@ -27,7 +27,7 @@
 #define OLD_MDL_REFERENCE "models/w_m4a1.mdl"
 #define REFERENCE_BODY_NUM		0
 /* =============================================================================  */
-/* ========================== soulreperex_Resources ============================  */
+/* ========================== EF_Breperex_Resources ============================  */
 // weapons
 #define P_MDL "models/mellowzy/p_soulreaperex.mdl"
 #define V_MDL "models/mellowzy/v_soulreaperexfx_s.mdl"
@@ -47,7 +47,9 @@
 #define EXPLOSION_MDL "sprites/mellowzy/ef_soulreaperex_exp.spr"
 #define AOE_SPR "sprites/mellowzy/ef_soulreaperex_p.spr"
 #define SPHERE_SPR "sprites/mellowzy/ef_soulreaperex_sphere.spr"
+#define SPHERE_SPR2 "sprites/mellowzy/ef_soulreaperex_sphere02.spr"
 #define HELIX_SPR_LASER "sprites/mellowzy/ef_soulreaperex_laser.spr"
+#define EF_B_MDL "sprites/mellowzy/ef_soulreaperex_bmode.spr"
 #define MUZZ_A_SPR "sprites/mellowzy/muzzleflash449.spr"
 #define MUZZ_C_SPR "sprites/mellowzy/muzzleflash453.spr"
 
@@ -59,7 +61,7 @@ new const ExtraSprites[][] =
 	"sprites/640hud260.spr"
 }
 /* =============================================================================  */
-/* ========================== soulreperex_Tunables ============================  */
+/* ========================== EF_Breperex_Tunables ============================  */
 #define ACC_SPREAD_STAND		0.004
 #define ACC_SPREAD_MOVE			0.04
 #define ACC_SPREAD_AIR			0.10
@@ -81,18 +83,13 @@ new const ExtraSprites[][] =
 #define CLIP 					80
 #define BPAMMO 					250
 /* =============================================================================  */
-/* ========================== soulreperex_entities_Data ========================  */
+/* ========================== EF_Breperex_entities_Data ========================  */
 //Classnames
-#define SPHERE_CLASSNAME "soulreaperex_sphere"
-#define HELIX_CLASSNAME "soulreaperex_helix"
-#define SHOOTA_CLASSNAME "soulreaperex_aoe"
+#define SPHERE_CLASSNAME "EF_Breaperex_sphere"
+#define HELIX_CLASSNAME "EF_Breaperex_helix"
+#define SHOOTA_CLASSNAME "EF_Breaperex_aoe"
 #define MUZZLE_A_CLS "mza"
 #define MUZZLE_C_CLS "mzc"
-
-#define IMPULSE_BACK_ORB         12164
-#define IMPULSE_SHOOT_SPRITE     12165
-#define IMPULSE_HELIX_ENT        12166
-#define IMPULSE_LASER_ENT        12167
 
 #if !defined EF_NOINTERP
 	#define EF_NOINTERP         32
@@ -125,6 +122,16 @@ new const ExtraSprites[][] =
 	#define M_PI 3.14159265358979323846
 #endif
 
+//bmode
+#define EF_B_CLASSNAME "EF_Breaperex_ef_b_mode"
+#define EF_B_FRAME_MAX 30
+#define EF_B_SPRITE_IMPULSE     1133         
+#define EF_B_SPRITE_LIFETIME    2.0       // Время жизни эффекта поглощения души (в секундах)
+#define EF_B_SPRITE_SCALE       0.15      // Масштаб спрайта души
+#define EF_B_OFFSET_FORWARD     18.0      // Смещение эффекта вперед
+#define EF_B_OFFSET_RIGHT       25.0      // Смещение эффекта вправо
+#define EF_B_OFFSET_UP          20.0      // Смещение эффекта вверх
+
 //aoe
 #define AOE_FRAMEMAX 44.0
 #define AOE_RANGE 180.0
@@ -136,6 +143,7 @@ new const ExtraSprites[][] =
 #define AOE_MAX_FRAME  44.0     // Maximum frame of the sprite
 #define AOE_SPEED      1.5      // Animation speed per think tick
 #define AOE_THINK_RATE 0.03     // Update rate (~33 FPS)
+#define IMPULSE_SHOOT_SPRITE     12165
 
 //helix
 #define HELIX_FRAMEMAX 44.0
@@ -237,7 +245,7 @@ new g_sphereLaunched[33][SPHERE_MAX];  // 1 = in missile mode
 new Float:g_orbitAngle[33][SPHERE_MAX];
 new Float:g_sphereLaunchTime[33][SPHERE_MAX]; // gametime when the sphere was launched
 /* =============================================================================  */
-/* ========================== soulreperex_Init ============================  */
+/* ========================== EF_Breperex_Init ============================  */
 public plugin_init()
 {
 	register_plugin(PLUGIN_NAME, PLUGIN_VERSION, PLUGIN_AUTHOR)
@@ -278,7 +286,7 @@ public plugin_init()
 }
 
 /* =============================================================================  */
-/* ========================== soulreperex_Precache ============================  */
+/* ========================== EF_Breperex_Precache ============================  */
 public plugin_precache()
 {
 	util_precache_model(P_MDL)
@@ -289,6 +297,7 @@ public plugin_precache()
 	util_precache_model(HELIX_MDL2)
 	util_precache_model(MUZZ_A_SPR)
 	util_precache_model(MUZZ_C_SPR)
+	util_precache_model(EF_B_MDL)
 	g_iExplosionSprite = util_precache_model(EXPLOSION_MDL)
 	g_iSpriteLaser = util_precache_model(HELIX_SPR_LASER)
 
@@ -298,9 +307,9 @@ public plugin_precache()
 	util_precache_sound(SND_SHOOTB_EXP)
 	util_precache_sound(SND_BALLS_APPEAR)
 
-
 	if(file_exists(AOE_SPR)) engfunc(EngFunc_PrecacheModel, AOE_SPR)
 	if(file_exists(SPHERE_SPR)) engfunc(EngFunc_PrecacheModel, SPHERE_SPR)
+	if(file_exists(SPHERE_SPR2)) engfunc(EngFunc_PrecacheModel, SPHERE_SPR2)
 	if(file_exists(HELIX_SPR_LASER)) engfunc(EngFunc_PrecacheModel, HELIX_SPR_LASER)
 
 #if PrecacheSoundsFromModel == 1
@@ -318,7 +327,7 @@ public plugin_precache()
 }
 
 /* =============================================================================  */
-/* ========================== soulreperex_CurWeap ============================  */
+/* ========================== EF_Breperex_CurWeap ============================  */
 public Event_CurWeapon(id)
 {
 	if(!is_user_alive(id))
@@ -326,7 +335,7 @@ public Event_CurWeapon(id)
 
 	new csw = read_data(2)
 
-	if(csw == CSW_SOULREAPEREX && Get_BitVar(g_ActiveWpn, id))
+	if(csw == CSW_EF_BREAPEREX && Get_BitVar(g_ActiveWpn, id))
 	{
 		SetViewModel(id)
 		set_pev(id, pev_weaponmodel2, P_MDL)
@@ -373,20 +382,20 @@ public CSOWPN_Give(id)
 	Start_Charge(id)
 	ResetMode(id)
 
-	static Ent; Ent = fm_get_user_weapon_entity(id, CSW_SOULREAPEREX)
+	static Ent; Ent = fm_get_user_weapon_entity(id, CSW_EF_BREAPEREX)
 	if(pev_valid(Ent))
 	{
 		cs_set_weapon_ammo(Ent, CLIP)
 
-		if(get_user_weapon(id) == CSW_SOULREAPEREX)
+		if(get_user_weapon(id) == CSW_EF_BREAPEREX)
 			Ham_CWeapon_Deploy_Post(Ent)
 	}
 
-	cs_set_user_bpammo(id, CSW_SOULREAPEREX, BPAMMO)
+	cs_set_user_bpammo(id, CSW_EF_BREAPEREX, BPAMMO)
 
 	message_begin(MSG_ONE_UNRELIABLE, get_user_msgid("CurWeapon"), _, id)
 	write_byte(1)
-	write_byte(CSW_SOULREAPEREX)
+	write_byte(CSW_EF_BREAPEREX)
 	write_byte(CLIP)
 	message_end()
 }
@@ -446,7 +455,7 @@ SetViewModel(id)
 }
 
 /* =============================================================================  */
-/* ========================== soulreperex_Fakemeta ============================  */
+/* ========================== EF_Breperex_Fakemeta ============================  */
 public fw_PrecacheEvent_Post(type, const name[])
 {
 	if(equal(WEAPON_EVENTS, name))
@@ -458,7 +467,7 @@ public fw_UpdateClientData_Post(id, sendweapons, cd_handle)
 	if(!is_user_alive(id))
 		return FMRES_IGNORED
 
-	if(get_user_weapon(id) == CSW_SOULREAPEREX && Get_BitVar(g_ActiveWpn, id))
+	if(get_user_weapon(id) == CSW_EF_BREAPEREX && Get_BitVar(g_ActiveWpn, id))
 	{
 		set_cd(cd_handle, CD_flNextAttack, get_gametime() + 0.001)
 		return FMRES_HANDLED
@@ -473,7 +482,7 @@ public fw_PlaybackEvent(flags, invoker, eventid, Float:delay, Float:origin[3], F
 		return FMRES_IGNORED
 	if(!(1 <= invoker <= g_MaxPlayers) || !Get_BitVar(g_ActiveWpn, invoker))
 		return FMRES_IGNORED
-	if(get_user_weapon(invoker) != CSW_SOULREAPEREX)
+	if(get_user_weapon(invoker) != CSW_EF_BREAPEREX)
 		return FMRES_IGNORED
 
 	engfunc(EngFunc_PlaybackEvent, flags | FEV_HOSTONLY, invoker, eventid, delay, origin, angles, fparam1, fparam2, iParam1, iParam2, bParam1, bParam2)
@@ -573,6 +582,47 @@ public fw_AddToFullPack_Post(es, e, ent, host, flags, player, pSet)
 
 		return FMRES_IGNORED
 	}
+	
+	if (IMP == EF_B_SPRITE_IMPULSE) {
+        new id = pev(ent, pev_owner)
+        if (id < 1 || id > 32 || !is_user_alive(id)) return FMRES_IGNORED
+
+        new wpn = get_pdata_cbase(id, m_pActiveItem, 5)
+        if (is_nullent(wpn) || pev(wpn, pev_impulse) != WEAPON_IMPULSE) {
+            set_es(es, ES_RenderAmt, 0.0)
+            set_es(es, ES_Effects, get_es(es, ES_Effects) | EF_NODRAW)
+            return FMRES_IGNORED
+        }
+
+        new Float:vBaseOrigin[3], Float:vAngle[3], Float:vForward[3], Float:vRight[3], Float:vUp[3]
+        get_es(es, ES_Origin, vBaseOrigin)
+        pev(id, pev_v_angle, vAngle)
+        engfunc(EngFunc_MakeVectors, vAngle)
+        global_get(glb_v_forward, vForward)
+        global_get(glb_v_right, vRight)
+        global_get(glb_v_up, vUp)
+
+        new Float:vFinalPos[3]
+        vFinalPos[0] = vBaseOrigin[0] + (vForward[0] * EF_B_OFFSET_FORWARD) + (vRight[0] * EF_B_OFFSET_RIGHT) + (vUp[0] * EF_B_OFFSET_UP)
+        vFinalPos[1] = vBaseOrigin[1] + (vForward[1] * EF_B_OFFSET_FORWARD) + (vRight[1] * EF_B_OFFSET_RIGHT) + (vUp[1] * EF_B_OFFSET_UP)
+        vFinalPos[2] = vBaseOrigin[2] + (vForward[2] * EF_B_OFFSET_FORWARD) + (vRight[2] * EF_B_OFFSET_RIGHT) + (vUp[2] * EF_B_OFFSET_UP)
+
+        set_es(es, ES_Origin, vFinalPos)
+        set_es(es, ES_MoveType, MOVETYPE_NONE)
+        set_es(es, ES_AimEnt, 0)
+        set_es(es, ES_Effects, get_es(es, ES_Effects) | EF_NOINTERP)
+
+        new bool:bCanSee = false
+        if (host == id) bCanSee = true
+        else if (!is_user_alive(host) && pev(host, pev_iuser1) == id) bCanSee = true
+
+        if (!bCanSee) {
+            set_es(es, ES_RenderAmt, 0.0)
+            set_es(es, ES_Effects, get_es(es, ES_Effects) | EF_NODRAW)
+        }
+
+        return FMRES_IGNORED
+    }
 
 	return FMRES_IGNORED
 }
@@ -587,7 +637,6 @@ public fw_Entity_Think(ent)
 
 	static iOwner; iOwner = pev(ent, pev_owner)
 	
-	
 	if(equal(classname, HELIX_CLASSNAME))
 	{
 		Entity_Think_Helix(ent)
@@ -599,10 +648,16 @@ public fw_Entity_Think(ent)
 		Entity_Think_Sphere_Projectile(ent)
 		return FMRES_IGNORED
 	}
+	
+	if(equal(classname, EF_B_CLASSNAME))
+	{
+		Entity_Think_EF_BMode(ent)
+		return FMRES_IGNORED
+	}
 
 	if(equal(classname, MUZZLE_A_CLS))
 	{
-		if(!is_user_alive(iOwner) || get_user_weapon(iOwner) != CSW_SOULREAPEREX)
+		if(!is_user_alive(iOwner) || get_user_weapon(iOwner) != CSW_EF_BREAPEREX)
 		{
 			set_pev(ent, pev_flags, FL_KILLME)
 			return FMRES_IGNORED
@@ -631,7 +686,7 @@ public fw_Entity_Think(ent)
 
 	if(equal(classname, MUZZLE_C_CLS))
 	{
-		if(!is_user_alive(iOwner) || get_user_weapon(iOwner) != CSW_SOULREAPEREX)
+		if(!is_user_alive(iOwner) || get_user_weapon(iOwner) != CSW_EF_BREAPEREX)
 		{
 			set_pev(ent, pev_flags, FL_KILLME)
 			return FMRES_IGNORED
@@ -660,7 +715,7 @@ public fw_Entity_Think(ent)
 
 	if(equal(classname, SHOOTA_CLASSNAME))
 	{
-		if(!is_user_alive(iOwner) || get_user_weapon(iOwner) != CSW_SOULREAPEREX)
+		if(!is_user_alive(iOwner) || get_user_weapon(iOwner) != CSW_EF_BREAPEREX)
 		{
 			set_pev(ent, pev_flags, FL_KILLME)
 			return FMRES_IGNORED
@@ -729,12 +784,12 @@ public fw_Entity_Touch(ent, other)
 }
 
 /* =============================================================================  */
-/* ========================== soulreperex_Hamsandwich ============================  */
+/* ========================== EF_Breperex_Hamsandwich ============================  */
 public fw_TraceAttack_World(Victim, Attacker, Float:Damage, Float:Direction[3], Ptr, DamageBits)
 {
 	if(!is_user_connected(Attacker))
 		return HAM_IGNORED
-	if(get_user_weapon(Attacker) != CSW_SOULREAPEREX || !Get_BitVar(g_ActiveWpn, Attacker))
+	if(get_user_weapon(Attacker) != CSW_EF_BREAPEREX || !Get_BitVar(g_ActiveWpn, Attacker))
 		return HAM_IGNORED
 	if(Get_BitVar(g_ActiveHelix, Attacker))
 		return HAM_IGNORED
@@ -754,7 +809,7 @@ public fw_TraceAttack_Player(Victim, Attacker, Float:Damage, Float:Direction[3],
 {
 	if(!is_user_connected(Attacker))
 		return HAM_IGNORED
-	if(get_user_weapon(Attacker) != CSW_SOULREAPEREX || !Get_BitVar(g_ActiveWpn, Attacker))
+	if(get_user_weapon(Attacker) != CSW_EF_BREAPEREX || !Get_BitVar(g_ActiveWpn, Attacker))
 		return HAM_IGNORED
 	if(get_user_team(Victim) == get_user_team(Attacker))
 		return HAM_IGNORED
@@ -793,7 +848,7 @@ public Ham_CWeapon_AddToPlayer_Post(ent, id)
 		Set_BitVar(g_ActiveWpn, id)
 		set_pev(ent, pev_impulse, 0)
 
-		if(get_user_weapon(id) == CSW_SOULREAPEREX)
+		if(get_user_weapon(id) == CSW_EF_BREAPEREX)
 			Ham_CWeapon_Deploy_Post(ent)
 	}
 
@@ -826,11 +881,11 @@ public Ham_CWeapon_PostFrame_Pre(ent)
 	if(get_pdata_int(ent, m_Weapon_fInReload, linux_diff_weapon) && get_pdata_float(id, m_flNextAttack, linux_diff_player) <= 0.0)
 	{
 		new iClip = get_pdata_int(ent, m_Weapon_iClip, linux_diff_weapon)
-		new iBp = cs_get_user_bpammo(id, CSW_SOULREAPEREX)
+		new iBp = cs_get_user_bpammo(id, CSW_EF_BREAPEREX)
 		new j = min(CLIP - iClip, iBp)
 
 		set_pdata_int(ent, m_Weapon_iClip, iClip + j, linux_diff_weapon)
-		cs_set_user_bpammo(id, CSW_SOULREAPEREX, iBp - j)
+		cs_set_user_bpammo(id, CSW_EF_BREAPEREX, iBp - j)
 		set_pdata_int(ent, m_Weapon_fInReload, 0, linux_diff_weapon)
 	}
 
@@ -838,7 +893,7 @@ public Ham_CWeapon_PostFrame_Pre(ent)
 	CWeapon_HelixThink(id)
 
 	new ibutton = pev(id, pev_button)
-	CWeapon_SoulReaperex(id, ent, ibutton)
+	CWeapon_EF_BReaperex(id, ent, ibutton)
 
 	return HAM_IGNORED
 }
@@ -866,7 +921,7 @@ public Ham_CWeapon_Reload_Pre(ent)
 
 	g_ReClip[id] = -1
 
-	if(cs_get_user_bpammo(id, CSW_SOULREAPEREX) <= 0)
+	if(cs_get_user_bpammo(id, CSW_EF_BREAPEREX) <= 0)
 		return HAM_SUPERCEDE
 
 	new iClip = get_pdata_int(ent, m_Weapon_iClip, linux_diff_weapon)
@@ -950,6 +1005,7 @@ public Ham_CWeapon_PrimaryAttack_Post(ent)
 			{
 				g_ShootCount[id] = 0
 				do_Sphere_Ent(id)
+				EF_BMode(id)
 
 				emit_sound(id, CHAN_ITEM, SND_BALLS_APPEAR, 1.0, ATTN_NORM, 0, PITCH_NORM)
 			}
@@ -1004,8 +1060,8 @@ public fw_TakeDamage_Pre(victim, inflictor, attacker, Float:damage, damagebits)
 	return HAM_SUPERCEDE
 }
 
-/* ========================== soulreperex_WpnSys ============================  */
-CWeapon_SoulReaperex(id, ent, button)
+/* ========================== EF_Breperex_WpnSys ============================  */
+CWeapon_EF_BReaperex(id, ent, button)
 {
 	if(!IsValidPev(ent)) return
 	if(!is_user_alive(id) || !Get_BitVar(g_ActiveWpn, id)) return
@@ -1116,7 +1172,7 @@ CWeapon_HelixThink(id)
 
 /* =============================================================================  */
 
-/* ========================== soulreperex_Entities ============================  */
+/* ========================== EF_Breperex_Entities ============================  */
 do_ShootAoe(id)
 {
 	static ent; ent = engfunc(EngFunc_CreateNamedEntity, engfunc(EngFunc_AllocString, "env_sprite"))
@@ -1157,7 +1213,7 @@ public do_Sphere_Ent(id)
 	new Float:vOrigin[3]
 	pev(id, pev_origin, vOrigin)
 
-	engfunc(EngFunc_SetModel, ent, SPHERE_SPR)
+	engfunc(EngFunc_SetModel, ent, SPHERE_SPR2)
 	engfunc(EngFunc_SetOrigin, ent, vOrigin)
 
 	set_pev(ent, pev_classname, SPHERE_CLASSNAME)
@@ -1165,6 +1221,7 @@ public do_Sphere_Ent(id)
 	set_pev(ent, pev_solid, SOLID_NOT)
 	set_pev(ent, pev_owner, id)
 	set_pev(ent, pev_frame, 0.0)
+	set_pev(ent, pev_fuser1, get_gametime() + 1.0)
 	set_pev(ent, pev_scale, SPHERE_SCALE)
 	set_pev(ent, pev_rendermode, kRenderTransAdd)
 	set_pev(ent, pev_renderamt, 255.0)
@@ -1208,6 +1265,12 @@ public Entity_Think_Sphere_Projectile(ent)
 	{
 		engfunc(EngFunc_RemoveEntity, ent)
 		return FMRES_HANDLED
+	}
+	
+	new Float:flChangeSpr; pev(ent, pev_fuser1, flChangeSpr)
+	if (get_gametime() >= flChangeSpr)
+	{
+		engfunc(EngFunc_SetModel, ent, SPHERE_SPR)
 	}
 
 	// Simple sprite animation
@@ -1706,10 +1769,45 @@ public Entity_Think_Helix(ent) {
     set_pev(ent, pev_nextthink, get_gametime() + (1.0 / HELIX_ANIM_FRAMERATE))
 }
 
+public EF_BMode(id) {
+    if (!CanCreateEntity()) return
+    new spr = engfunc(EngFunc_CreateNamedEntity, engfunc(EngFunc_AllocString, "env_sprite"))
+    if (!pev_valid(spr)) return
 
+    set_pev(spr, pev_classname, EF_B_CLASSNAME)
+    engfunc(EngFunc_SetModel, spr, EF_B_MDL)
+    set_pev(spr, pev_spawnflags, SF_SPRITE_ONCE)
+    dllfunc(DLLFunc_Spawn, spr)
+
+    set_pev(spr, pev_solid, SOLID_NOT)
+    set_pev(spr, pev_movetype, MOVETYPE_FOLLOW)
+    set_pev(spr, pev_aiment, id)
+    set_pev(spr, pev_rendermode, kRenderTransAdd)
+    set_pev(spr, pev_renderamt, 255.0)
+    set_pev(spr, pev_scale, EF_B_SPRITE_SCALE)
+    set_pev(spr, pev_framerate, 15.0)
+    set_pev(spr, pev_owner, id)
+    set_pev(spr, pev_impulse, EF_B_SPRITE_IMPULSE)
+    set_pev(spr, pev_fuser1, get_gametime() + EF_B_SPRITE_LIFETIME)
+    set_pev(spr, pev_nextthink, get_gametime() + 0.1)
+}
+
+public Entity_Think_EF_BMode(ent) {
+    if (!pev_valid(ent)) return
+    new Float:flDieTime; pev(ent, pev_fuser1, flDieTime)
+    if (get_gametime() >= flDieTime) { engfunc(EngFunc_RemoveEntity, ent); return; }
+
+    new id = pev(ent, pev_owner)
+    if (id < 1 || id > 32 || !is_user_alive(id)) { engfunc(EngFunc_RemoveEntity, ent); return; }
+
+    new wpn = get_pdata_cbase(id, m_pActiveItem, 5)
+    if (is_nullent(wpn) || pev(wpn, pev_impulse) != WEAPON_IMPULSE) { engfunc(EngFunc_RemoveEntity, ent); return; }
+
+    set_pev(ent, pev_nextthink, get_gametime() + 0.1)
+}
 /* =============================================================================  */
 /* =============================================================================  */
-/* ========================== soulreperex_Stocks ============================  */
+/* ========================== EF_Breperex_Stocks ============================  */
 stock UTIL_WeaponList(client_index, bool: bEnabled)
 {
 	static iMsgId_Weaponlist
@@ -1990,6 +2088,7 @@ stock Stock_Muzzle(iPlayer, const szcls[], const szmodel[], Float:fScale)
 	set_pev(Ent, pev_nextthink, get_gametime() + 0.04)
 }
 
+
 stock Radius_Damage(id, inflictor, Float:vicOri[3], Float:fRadius, Float:fDamage, dmgbits)
 {
 	new i = -1
@@ -2080,6 +2179,11 @@ stock Create_Explosion(Float:origin[3], iScale = 10, iFramerate = 15)
 
 stock bool:CanCreateEntity() {
     return (global_get(glb_maxEntities) - engfunc(EngFunc_NumberOfEntities) >= 100)
+}
+
+stock bool:is_nullent(const ent)
+{
+    return (ent <= 0 || ent == FM_NULLENT)
 }
 
 /* =============================================================================  */
