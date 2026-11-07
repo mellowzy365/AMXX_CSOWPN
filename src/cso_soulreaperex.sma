@@ -27,7 +27,7 @@
 #define OLD_MDL_REFERENCE "models/w_m4a1.mdl"
 #define REFERENCE_BODY_NUM		0
 /* =============================================================================  */
-/* ========================== EF_Breperex_Resources ============================  */
+/* ========================== SoulReaperex_Resources ============================  */
 // weapons
 #define P_MDL "models/mellowzy/p_soulreaperex.mdl"
 #define V_MDL "models/mellowzy/v_soulreaperexfx_s.mdl"
@@ -61,7 +61,7 @@ new const ExtraSprites[][] =
 	"sprites/640hud260.spr"
 }
 /* =============================================================================  */
-/* ========================== EF_Breperex_Tunables ============================  */
+/* ========================== Soulreaperex_Tunables ============================  */
 #define ACC_SPREAD_STAND		0.004
 #define ACC_SPREAD_MOVE			0.04
 #define ACC_SPREAD_AIR			0.10
@@ -83,7 +83,7 @@ new const ExtraSprites[][] =
 #define CLIP 					80
 #define BPAMMO 					250
 /* =============================================================================  */
-/* ========================== EF_Breperex_entities_Data ========================  */
+/* ========================== SoulReaperex_entities_Data ========================  */
 //Classnames
 #define SPHERE_CLASSNAME "EF_Breaperex_sphere"
 #define HELIX_CLASSNAME "EF_Breaperex_helix"
@@ -123,14 +123,14 @@ new const ExtraSprites[][] =
 #endif
 
 //bmode
-#define EF_B_CLASSNAME "EF_Breaperex_ef_b_mode"
+#define EF_B_CLASSNAME "SoulReaper_ef_b_mode"
 #define EF_B_FRAME_MAX 30
 #define EF_B_SPRITE_IMPULSE     1133         
-#define EF_B_SPRITE_LIFETIME    2.0       // Время жизни эффекта поглощения души (в секундах)
-#define EF_B_SPRITE_SCALE       0.15      // Масштаб спрайта души
-#define EF_B_OFFSET_FORWARD     18.0      // Смещение эффекта вперед
-#define EF_B_OFFSET_RIGHT       25.0      // Смещение эффекта вправо
-#define EF_B_OFFSET_UP          20.0      // Смещение эффекта вверх
+#define EF_B_SPRITE_LIFETIME    2.0       
+#define EF_B_SPRITE_SCALE       0.15      
+#define EF_B_OFFSET_FORWARD     18.0      
+#define EF_B_OFFSET_RIGHT       25.0     
+#define EF_B_OFFSET_UP        20.0      
 
 //aoe
 #define AOE_FRAMEMAX 44.0
@@ -245,7 +245,7 @@ new g_sphereLaunched[33][SPHERE_MAX];  // 1 = in missile mode
 new Float:g_orbitAngle[33][SPHERE_MAX];
 new Float:g_sphereLaunchTime[33][SPHERE_MAX]; // gametime when the sphere was launched
 /* =============================================================================  */
-/* ========================== EF_Breperex_Init ============================  */
+/* ========================== Soulreaperex _Init ============================  */
 public plugin_init()
 {
 	register_plugin(PLUGIN_NAME, PLUGIN_VERSION, PLUGIN_AUTHOR)
@@ -286,7 +286,7 @@ public plugin_init()
 }
 
 /* =============================================================================  */
-/* ========================== EF_Breperex_Precache ============================  */
+/* ========================== Soulreaperex_Precache ============================  */
 public plugin_precache()
 {
 	util_precache_model(P_MDL)
@@ -327,7 +327,7 @@ public plugin_precache()
 }
 
 /* =============================================================================  */
-/* ========================== EF_Breperex_CurWeap ============================  */
+/* ========================== Soulreaperex_CurWeap ============================  */
 public Event_CurWeapon(id)
 {
 	if(!is_user_alive(id))
@@ -335,7 +335,7 @@ public Event_CurWeapon(id)
 
 	new csw = read_data(2)
 
-	if(csw == CSW_EF_BREAPEREX && Get_BitVar(g_ActiveWpn, id))
+	if(csw == CSW_SOULREAPEREX && Get_BitVar(g_ActiveWpn, id))
 	{
 		SetViewModel(id)
 		set_pev(id, pev_weaponmodel2, P_MDL)
@@ -455,7 +455,7 @@ SetViewModel(id)
 }
 
 /* =============================================================================  */
-/* ========================== EF_Breperex_Fakemeta ============================  */
+/* ========================== Soulreaperex_Fakemeta ============================  */
 public fw_PrecacheEvent_Post(type, const name[])
 {
 	if(equal(WEAPON_EVENTS, name))
@@ -784,7 +784,7 @@ public fw_Entity_Touch(ent, other)
 }
 
 /* =============================================================================  */
-/* ========================== EF_Soulreaperex_Hamsandwich ============================  */
+/* ========================== Soulreaperex_Hamsandwich ============================  */
 public fw_TraceAttack_World(Victim, Attacker, Float:Damage, Float:Direction[3], Ptr, DamageBits)
 {
 	if(!is_user_connected(Attacker))
@@ -921,7 +921,7 @@ public Ham_CWeapon_Reload_Pre(ent)
 
 	g_ReClip[id] = -1
 
-	if(cs_get_user_bpammo(id, CSW_EF_BREAPEREX) <= 0)
+	if(cs_get_user_bpammo(id, CSW_SOULREAPEREX) <= 0)
 		return HAM_SUPERCEDE
 
 	new iClip = get_pdata_int(ent, m_Weapon_iClip, linux_diff_weapon)
@@ -1053,7 +1053,7 @@ public fw_TakeDamage_Pre(victim, inflictor, attacker, Float:damage, damagebits)
 	new Float:flHealth
 	pev(victim, pev_health, flHealth)
 
-	if(flHealth - damage > 0.0)
+	if(flHealth <= 0.0)
 		return HAM_IGNORED
 
 	set_pev(victim, pev_health, REVIVE_HEALTH)
@@ -1173,7 +1173,7 @@ CWeapon_HelixThink(id)
 
 /* =============================================================================  */
 
-/* ========================== EF_Breperex_Entities ============================  */
+/* ========================== Soulreaperex_Entities ============================  */
 do_ShootAoe(id)
 {
 	static ent; ent = engfunc(EngFunc_CreateNamedEntity, engfunc(EngFunc_AllocString, "env_sprite"))
