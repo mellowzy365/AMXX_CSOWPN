@@ -19,7 +19,7 @@
 #endif
 /* =============================================================================  */
 /* ========================== CSWPN_Data =======================================  */
-#define CSW_EF_BREAPEREX CSW_M4A1
+#define CSW_SOULREAPEREX CSW_M4A1
 #define WEAPON_REFERENCE "weapon_m4a1"
 #define WEAPON_SPR "weapon_soulreaperex"
 #define WEAPON_IMPULSE 3399012
@@ -382,20 +382,20 @@ public CSOWPN_Give(id)
 	Start_Charge(id)
 	ResetMode(id)
 
-	static Ent; Ent = fm_get_user_weapon_entity(id, CSW_EF_BREAPEREX)
+	static Ent; Ent = fm_get_user_weapon_entity(id, CSW_SOULREAPEREX)
 	if(pev_valid(Ent))
 	{
 		cs_set_weapon_ammo(Ent, CLIP)
 
-		if(get_user_weapon(id) == CSW_EF_BREAPEREX)
+		if(get_user_weapon(id) == CSW_SOULREAPEREX)
 			Ham_CWeapon_Deploy_Post(Ent)
 	}
 
-	cs_set_user_bpammo(id, CSW_EF_BREAPEREX, BPAMMO)
+	cs_set_user_bpammo(id, CSW_SOULREAPEREX, BPAMMO)
 
 	message_begin(MSG_ONE_UNRELIABLE, get_user_msgid("CurWeapon"), _, id)
 	write_byte(1)
-	write_byte(CSW_EF_BREAPEREX)
+	write_byte(CSW_SOULREAPEREX)
 	write_byte(CLIP)
 	message_end()
 }
@@ -467,7 +467,7 @@ public fw_UpdateClientData_Post(id, sendweapons, cd_handle)
 	if(!is_user_alive(id))
 		return FMRES_IGNORED
 
-	if(get_user_weapon(id) == CSW_EF_BREAPEREX && Get_BitVar(g_ActiveWpn, id))
+	if(get_user_weapon(id) == CSW_SOULREAPEREX && Get_BitVar(g_ActiveWpn, id))
 	{
 		set_cd(cd_handle, CD_flNextAttack, get_gametime() + 0.001)
 		return FMRES_HANDLED
@@ -482,7 +482,7 @@ public fw_PlaybackEvent(flags, invoker, eventid, Float:delay, Float:origin[3], F
 		return FMRES_IGNORED
 	if(!(1 <= invoker <= g_MaxPlayers) || !Get_BitVar(g_ActiveWpn, invoker))
 		return FMRES_IGNORED
-	if(get_user_weapon(invoker) != CSW_EF_BREAPEREX)
+	if(get_user_weapon(invoker) != CSW_SOULREAPEREX)
 		return FMRES_IGNORED
 
 	engfunc(EngFunc_PlaybackEvent, flags | FEV_HOSTONLY, invoker, eventid, delay, origin, angles, fparam1, fparam2, iParam1, iParam2, bParam1, bParam2)
@@ -657,7 +657,7 @@ public fw_Entity_Think(ent)
 
 	if(equal(classname, MUZZLE_A_CLS))
 	{
-		if(!is_user_alive(iOwner) || get_user_weapon(iOwner) != CSW_EF_BREAPEREX)
+		if(!is_user_alive(iOwner) || get_user_weapon(iOwner) != CSW_SOULREAPEREX)
 		{
 			set_pev(ent, pev_flags, FL_KILLME)
 			return FMRES_IGNORED
@@ -686,7 +686,7 @@ public fw_Entity_Think(ent)
 
 	if(equal(classname, MUZZLE_C_CLS))
 	{
-		if(!is_user_alive(iOwner) || get_user_weapon(iOwner) != CSW_EF_BREAPEREX)
+		if(!is_user_alive(iOwner) || get_user_weapon(iOwner) != CSW_SOULREAPEREX)
 		{
 			set_pev(ent, pev_flags, FL_KILLME)
 			return FMRES_IGNORED
@@ -715,7 +715,7 @@ public fw_Entity_Think(ent)
 
 	if(equal(classname, SHOOTA_CLASSNAME))
 	{
-		if(!is_user_alive(iOwner) || get_user_weapon(iOwner) != CSW_EF_BREAPEREX)
+		if(!is_user_alive(iOwner) || get_user_weapon(iOwner) != CSW_SOULREAPEREX)
 		{
 			set_pev(ent, pev_flags, FL_KILLME)
 			return FMRES_IGNORED
@@ -784,12 +784,12 @@ public fw_Entity_Touch(ent, other)
 }
 
 /* =============================================================================  */
-/* ========================== EF_Breperex_Hamsandwich ============================  */
+/* ========================== EF_Soulreaperex_Hamsandwich ============================  */
 public fw_TraceAttack_World(Victim, Attacker, Float:Damage, Float:Direction[3], Ptr, DamageBits)
 {
 	if(!is_user_connected(Attacker))
 		return HAM_IGNORED
-	if(get_user_weapon(Attacker) != CSW_EF_BREAPEREX || !Get_BitVar(g_ActiveWpn, Attacker))
+	if(get_user_weapon(Attacker) != CSW_SOULREAPEREX || !Get_BitVar(g_ActiveWpn, Attacker))
 		return HAM_IGNORED
 	if(Get_BitVar(g_ActiveHelix, Attacker))
 		return HAM_IGNORED
@@ -809,7 +809,7 @@ public fw_TraceAttack_Player(Victim, Attacker, Float:Damage, Float:Direction[3],
 {
 	if(!is_user_connected(Attacker))
 		return HAM_IGNORED
-	if(get_user_weapon(Attacker) != CSW_EF_BREAPEREX || !Get_BitVar(g_ActiveWpn, Attacker))
+	if(get_user_weapon(Attacker) != CSW_SOULREAPEREX || !Get_BitVar(g_ActiveWpn, Attacker))
 		return HAM_IGNORED
 	if(get_user_team(Victim) == get_user_team(Attacker))
 		return HAM_IGNORED
@@ -848,7 +848,7 @@ public Ham_CWeapon_AddToPlayer_Post(ent, id)
 		Set_BitVar(g_ActiveWpn, id)
 		set_pev(ent, pev_impulse, 0)
 
-		if(get_user_weapon(id) == CSW_EF_BREAPEREX)
+		if(get_user_weapon(id) == CSW_SOULREAPEREX)
 			Ham_CWeapon_Deploy_Post(ent)
 	}
 
@@ -893,7 +893,7 @@ public Ham_CWeapon_PostFrame_Pre(ent)
 	CWeapon_HelixThink(id)
 
 	new ibutton = pev(id, pev_button)
-	CWeapon_EF_BReaperex(id, ent, ibutton)
+	CWeapon_Soulreaperex(id, ent, ibutton)
 
 	return HAM_IGNORED
 }
@@ -1060,8 +1060,9 @@ public fw_TakeDamage_Pre(victim, inflictor, attacker, Float:damage, damagebits)
 	return HAM_SUPERCEDE
 }
 
-/* ========================== EF_Breperex_WpnSys ============================  */
-CWeapon_EF_BReaperex(id, ent, button)
+/* ========================== 
+SoulReaperex_WpnSys ============================  */
+CWeapon_Soulreaperex(id, ent, button)
 {
 	if(!IsValidPev(ent)) return
 	if(!is_user_alive(id) || !Get_BitVar(g_ActiveWpn, id)) return
