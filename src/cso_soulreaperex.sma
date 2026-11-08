@@ -28,18 +28,12 @@
 #define REFERENCE_BODY_NUM		0
 /* =============================================================================  */
 /* ========================== Soulreaperex_Resources ============================  */
+
 // weapons
 #define P_MDL "models/mellowzy/p_soulreaperex.mdl"
 #define V_MDL "models/mellowzy/v_soulreaperexfx_s.mdl"
 #define V_MDL_S "models/mellowzy/v_soulreaperexfx_s_pink.mdl"
 #define W_MDL "models/mellowzy/w_soulreaperex.mdl"
-
-//sounds
-#define SND_SHOOTA "weapons/soulreaper-1.wav"
-#define SND_SHOOTB "weapons/soulreaper-2.wav"
-#define SND_SHOOTC "weapons/soulreaperex-3.wav"
-#define SND_SHOOTB_EXP "weapons/soulreaper-2_exp.wav"
-#define SND_BALLS_APPEAR "weapons/soulreaper_bmod_start.wav"
 
 //entities
 #define HELIX_MDL1 "models/mellowzy/ef_soulreaperex_shoot_c_fx.mdl"
@@ -52,6 +46,17 @@
 #define EF_B_SPR "sprites/mellowzy/ef_soulreaperex_bmode.spr"
 #define MUZZ_A_SPR "sprites/mellowzy/muzzleflash449.spr"
 #define MUZZ_C_SPR "sprites/mellowzy/muzzleflash453.spr"
+
+#define EF_DRAW_SPR "sprites/mellowzy/ef_soulreaperex_draw.spr"
+#define EF_IDLEA_SPR "sprites/mellowzy/ef_soulreaperex_amode.spr"
+#define EF_IDLEC_SPR "sprites/mellowzy/ef_soulreaperex_cmode.spr"
+
+//sounds
+#define SND_SHOOTA "weapons/soulreaper-1.wav"
+#define SND_SHOOTB "weapons/soulreaper-2.wav"
+#define SND_SHOOTC "weapons/soulreaperex-3.wav"
+#define SND_SHOOTB_EXP "weapons/soulreaper-2_exp.wav"
+#define SND_BALLS_APPEAR "weapons/soulreaper_bmod_start.wav"
 
 #define SMOKE_SPR "sprites/wall_puff1.spr"
 
@@ -104,6 +109,9 @@ new const ExtraSprites[][] =
 #define MUZZLE_A_CLS "mza"
 #define MUZZLE_C_CLS "mzc"
 
+#define EF_IDLE_CLS "ef_idle"
+#define EF_DRAW_CLS "ef_draw"
+
 #if !defined EF_NOINTERP
 	#define EF_NOINTERP         32
 #endif
@@ -135,15 +143,18 @@ new const ExtraSprites[][] =
 	#define M_PI 3.14159265358979323846
 #endif
 
+//ef_back
+#define EF_BACK_CLS "ef_back"
+#define EF_BACK_NEXTTHINK 0.04
+#define EF_BACK_FRAMEMAX 25.0
+#define EF_BACK_FRAME 0.8
+#define EF_BACK_SCALE 0.15
+
 //bmode
 #define EF_B_CLASSNAME "SoulReaper_ef_b_mode"
-#define EF_B_FRAME_MAX 30
-#define EF_B_SPRITE_IMPULSE     1133         
-#define EF_B_SPRITE_LIFETIME    2.0       
-#define EF_B_SPRITE_SCALE       0.15      
-#define EF_B_OFFSET_FORWARD     18.0      
-#define EF_B_OFFSET_RIGHT       25.0     
-#define EF_B_OFFSET_UP        20.0      
+#define EF_B_FRAME_MAX 			30
+#define EF_B_SPRITE_SCALE       0.25
+#define EF_B_IMPULSE			10029310   
 
 //aoe
 #define AOE_FRAMEMAX 44.0
@@ -152,12 +163,15 @@ new const ExtraSprites[][] =
 #define AOE_KNOCKBACK 5.0
 
 #define AOE_DISTANCE   40.0     // Distance in front of the player (damage center)
-#define AOE_VISUAL_DISTANCE 195.0 // Distance in front of the player where the sprite is drawn (visual only, set in AddToFullPack)
-#define AOE_OFFSET_Z   -10.0    // Lower it a bit so it doesn't cover the camera
+#define AOE_VISUAL_DISTANCE 190.0 // Distance in front of the player where the sprite entity is placed (visual only)
+#define AOE_VISUAL_OFFSET_Z -20.0   // Vertical offset of the sprite (about -34.0 puts it near the player's feet)
+#define AOE_ANIM_FPS   30.0     // Sprite animation speed (frames per second)
+#define AOE_KILL_FRAME 14.0     // The sprite is removed once it passes this frame
+#define AOE_DAMAGE_INTERVAL 0.1 // Seconds between two damage ticks
+#define AOE_OFFSET_Z   -30.0    // Lower it a bit so it doesn't cover the camera
 #define AOE_MAX_FRAME  44.0     // Maximum frame of the sprite
 #define AOE_SPEED      1.5      // Animation speed per think tick
 #define AOE_THINK_RATE 0.03     // Update rate (~33 FPS)
-#define IMPULSE_SHOOT_SPRITE     12165
 
 //helix
 #define HELIX_FRAMEMAX 44.0
@@ -176,8 +190,8 @@ new const ExtraSprites[][] =
 #define HELIX_CONSUME_AMOUNT 10		// charge consumed per consume tick
 #define HELIX_CHANGE_TIME 1.0		// attack lock while switching to helix mode
 #define HELIX_BEAM_DELAY 0.8
-#define HELIX_BEAM_WIDTH        50.0          
-#define HELIX_ANIM_FRAMERATE    20.0  
+#define HELIX_BEAM_WIDTH        50.0
+#define HELIX_ANIM_FRAMERATE    20.0
 
 /* =============================================================================  */
 /* ========================== Offset_and_macro's ============================  */
@@ -249,8 +263,6 @@ new Float:g_NextConsume[33], Float:g_NextCharge[33]
 new g_ArmorHits[33], g_ArmorUses[33]
 new Float:g_ArmorCooldownEnd[33]
 
-new Float:g_flCachedPitch[33];
-new Float:g_flCachedZ[33];
 new Float:g_flNextTrace[33];
 
 new g_pcvFriendlyFire
@@ -276,7 +288,6 @@ public plugin_init()
 	register_forward(FM_UpdateClientData, "fw_UpdateClientData_Post", true)
 	register_forward(FM_PlaybackEvent, "fw_PlaybackEvent")
 	register_forward(FM_SetModel, "fw_SetModel")
-	register_forward(FM_AddToFullPack, "fw_AddToFullPack_Post", true)
 	register_forward(FM_Think, "fw_Entity_Think")
 	register_forward(FM_Touch, "fw_Entity_Touch")
 
@@ -329,6 +340,9 @@ public plugin_precache()
 	util_precache_model(AOE_SPR)
 	util_precache_model(SPHERE_SPR)
 	util_precache_model(SPHERE_SPR2)
+	util_precache_model(EF_DRAW_SPR)
+	util_precache_model(EF_IDLEA_SPR)
+	util_precache_model(EF_IDLEC_SPR)
 
 #if PrecacheSoundsFromModel == 1
 	util_precache_sounds_from_model(V_MDL);
@@ -375,7 +389,6 @@ public Event_NewRound()
 
 public client_putinserver(id)
 {
-	g_flCachedZ[id] = -9999.0
 	UnSet_BitVar(g_LeftHand, id)
 	Query_RightHand(id)
 
@@ -473,8 +486,6 @@ ResetPlayer(id)
 	g_Old_Weapon[id] = 0
 	g_NextConsume[id] = 0.0
 	g_NextCharge[id] = 0.0
-	g_flCachedPitch[id] = 0.0
-	g_flCachedZ[id] = -9999.0
 
 	Armor_Reset(id)
 	g_ArmorUses[id] = 0
@@ -566,109 +577,6 @@ public fw_SetModel(entity, const model[])
 	return FMRES_IGNORED
 }
 
-public fw_AddToFullPack_Post(es, e, ent, host, flags, player, pSet)
-{
-	if (!pev_valid(ent) || player) return FMRES_IGNORED
-
-	new IMP = pev(ent, pev_impulse)
-
-	if (IMP == IMPULSE_SHOOT_SPRITE)
-	{
-		new id = pev(ent, pev_owner)
-		if (id < 1 || id > 32 || !is_user_alive(id)) return FMRES_IGNORED
-
-		new Float:vBaseOrigin[3], Float:vAngle[3]
-		get_es(es, ES_Origin, vBaseOrigin)
-		pev(id, pev_v_angle, vAngle)
-
-		g_flCachedPitch[id] = vAngle[0]
-
-		new Float:flClampedPitch = g_flCachedPitch[id]
-		new Float:flMinZ = g_flCachedZ[id]
-
-		new Float:flPitchRad = -flClampedPitch * RADIAN_CONV
-		new Float:flYawRad = vAngle[1] * RADIAN_CONV
-		new Float:flCosPitch = floatcos(flPitchRad, radian)
-
-		new Float:vFwd[3]
-		vFwd[0] = flCosPitch * floatcos(flYawRad, radian)
-		vFwd[1] = flCosPitch * floatsin(flYawRad, radian)
-		vFwd[2] = floatsin(flPitchRad, radian)
-
-		new Float:vFinalPos[3]
-		vFinalPos[0] = vBaseOrigin[0] + vFwd[0] * AOE_VISUAL_DISTANCE
-		vFinalPos[1] = vBaseOrigin[1] + vFwd[1] * AOE_VISUAL_DISTANCE
-		vFinalPos[2] = vBaseOrigin[2] + vFwd[2] * AOE_VISUAL_DISTANCE + 0.0
-
-		if (vFinalPos[2] < flMinZ && flMinZ != -9999.0)
-		{
-			vFinalPos[2] = flMinZ
-		}
-
-		new Float:vAngles[3]
-		vAngles[0] = 90.0 + flClampedPitch
-		vAngles[1] = vAngle[1]
-		vAngles[2] = -45.0
-
-		set_es(es, ES_Origin, vFinalPos)
-		set_es(es, ES_Angles, vAngles)
-		set_es(es, ES_MoveType, MOVETYPE_NONE)
-		set_es(es, ES_AimEnt, 0)
-		set_es(es, ES_Effects, get_es(es, ES_Effects) | EF_NOINTERP)
-
-		return FMRES_IGNORED
-	}
-	
-	if (IMP == EF_B_SPRITE_IMPULSE) {
-        new id = pev(ent, pev_owner)
-        if (id < 1 || id > 32 || !is_user_alive(id)) return FMRES_IGNORED
-
-        // g_ActiveWpn is the source of truth: the weapon's pev_impulse is reset to 0
-        // in AddToPlayer_Post, so comparing it with WEAPON_IMPULSE is always false.
-        if (!Get_BitVar(g_ActiveWpn, id) || get_user_weapon(id) != CSW_SOULREAPEREX) {
-            set_es(es, ES_RenderAmt, 0.0)
-            set_es(es, ES_Effects, get_es(es, ES_Effects) | EF_NODRAW)
-            return FMRES_IGNORED
-        }
-
-        new Float:vBaseOrigin[3], Float:vAngle[3], Float:vForward[3], Float:vRight[3], Float:vUp[3]
-        get_es(es, ES_Origin, vBaseOrigin)
-        pev(id, pev_v_angle, vAngle)
-        engfunc(EngFunc_MakeVectors, vAngle)
-        global_get(glb_v_forward, vForward)
-        global_get(glb_v_right, vRight)
-        global_get(glb_v_up, vUp)
-
-        // Mirror the sideways offset for left-handed players (cl_righthand 0)
-        new Float:flRightOffset = EF_B_OFFSET_RIGHT
-        if (Get_BitVar(g_LeftHand, id))
-            flRightOffset = -flRightOffset
-
-        new Float:vFinalPos[3]
-        vFinalPos[0] = vBaseOrigin[0] + (vForward[0] * EF_B_OFFSET_FORWARD) + (vRight[0] * flRightOffset) + (vUp[0] * EF_B_OFFSET_UP)
-        vFinalPos[1] = vBaseOrigin[1] + (vForward[1] * EF_B_OFFSET_FORWARD) + (vRight[1] * flRightOffset) + (vUp[1] * EF_B_OFFSET_UP)
-        vFinalPos[2] = vBaseOrigin[2] + (vForward[2] * EF_B_OFFSET_FORWARD) + (vRight[2] * flRightOffset) + (vUp[2] * EF_B_OFFSET_UP)
-
-        set_es(es, ES_Origin, vFinalPos)
-        set_es(es, ES_MoveType, MOVETYPE_NONE)
-        set_es(es, ES_AimEnt, 0)
-        set_es(es, ES_Effects, get_es(es, ES_Effects) | EF_NOINTERP)
-
-        new bool:bCanSee = false
-        if (host == id) bCanSee = true
-        else if (!is_user_alive(host) && pev(host, pev_iuser1) == id) bCanSee = true
-
-        if (!bCanSee) {
-            set_es(es, ES_RenderAmt, 0.0)
-            set_es(es, ES_Effects, get_es(es, ES_Effects) | EF_NODRAW)
-        }
-
-        return FMRES_IGNORED
-    }
-
-	return FMRES_IGNORED
-}
-
 public fw_Entity_Think(ent)
 {
 	if(!pev_valid(ent))
@@ -679,6 +587,12 @@ public fw_Entity_Think(ent)
 
 	static iOwner; iOwner = pev(ent, pev_owner)
 	
+	if(equal(classname, EF_BACK_CLS))
+	{
+		Entity_Think_EF_Back(ent)
+		return FMRES_IGNORED
+	}
+
 	if(equal(classname, HELIX_CLASSNAME))
 	{
 		Entity_Think_Helix(ent)
@@ -691,6 +605,18 @@ public fw_Entity_Think(ent)
 		return FMRES_IGNORED
 	}
 	
+	if(equal(classname, EF_DRAW_CLS))
+	{
+		Entity_Think_EF_Draw(ent)
+		return FMRES_IGNORED
+	}
+	
+	if(equal(classname, EF_IDLE_CLS))
+	{
+		Entity_Think_EF_ACMode(ent)
+		return FMRES_IGNORED
+	}
+
 	if(equal(classname, EF_B_CLASSNAME))
 	{
 		Entity_Think_EF_BMode(ent)
@@ -770,38 +696,45 @@ public fw_Entity_Think(ent)
 			return FMRES_IGNORED
 		}
 
-		static Float:Frame; pev(ent, pev_frame, Frame)
-		if(Frame > 14.0)
+		// Time based animation, so the speed does not depend on the think interval
+		static Float:flTime, Float:flStart, Float:flFrame
+		flTime = get_gametime()
+		pev(ent, pev_fuser2, flStart)
+		flFrame = (flTime - flStart) * AOE_ANIM_FPS
+
+		if(flFrame > AOE_KILL_FRAME)
 		{
 			set_pev(ent, pev_flags, FL_KILLME)
 			return FMRES_IGNORED
 		}
 
-		new Float:pOrigin[3], Float:pAngles[3];
-		pev(iOwner, pev_origin, pOrigin);
+		set_pev(ent, pev_frame, flFrame)
 
-		// Use v_angle to include pitch (looking up/down)
-		pev(iOwner, pev_v_angle, pAngles);
+		// Keep the sprite in front of the owner
+		Aoe_UpdatePosition(ent, iOwner)
 
-		// Calculate forward vector based on player's view angle
-		new Float:fForward[3];
-		angle_vector(pAngles, ANGLEVECTOR_FORWARD, fForward);
+		// Damage tick (center is AOE_DISTANCE in front of the player, not where the sprite is drawn)
+		static Float:flNextDamage
+		pev(ent, pev_fuser1, flNextDamage)
 
-		// Calculate new position in front of player
-		new Float:newOrigin[3];
-		newOrigin[0] = pOrigin[0] + (fForward[0] * AOE_DISTANCE);
-		newOrigin[1] = pOrigin[1] + (fForward[1] * AOE_DISTANCE);
-		newOrigin[2] = pOrigin[2] + (fForward[2] * AOE_DISTANCE) + AOE_OFFSET_Z;
+		if(flTime >= flNextDamage)
+		{
+			new Float:pOrigin[3], Float:pAngles[3], Float:fForward[3], Float:newOrigin[3]
+			pev(iOwner, pev_origin, pOrigin)
 
-		// Apply position and angle to entity
-		engfunc(EngFunc_SetOrigin, ent, newOrigin);
-		set_pev(ent, pev_angles, pAngles);
+			// Use v_angle to include pitch (looking up/down)
+			pev(iOwner, pev_v_angle, pAngles)
+			angle_vector(pAngles, ANGLEVECTOR_FORWARD, fForward)
 
-		Radius_Damage(iOwner, iOwner, newOrigin, AOE_RANGE, AOE_DAMAGE, DMG_BULLET | DMG_NEVERGIB)
+			newOrigin[0] = pOrigin[0] + (fForward[0] * AOE_DISTANCE)
+			newOrigin[1] = pOrigin[1] + (fForward[1] * AOE_DISTANCE)
+			newOrigin[2] = pOrigin[2] + (fForward[2] * AOE_DISTANCE) + AOE_OFFSET_Z
 
-		Frame += 1.5
-		set_pev(ent, pev_frame, Frame)
-		set_pev(ent, pev_nextthink, get_gametime() + 0.04)
+			Radius_Damage(iOwner, iOwner, newOrigin, AOE_RANGE, AOE_DAMAGE, DMG_BULLET | DMG_NEVERGIB)
+			set_pev(ent, pev_fuser1, flTime + AOE_DAMAGE_INTERVAL)
+		}
+
+		set_pev(ent, pev_nextthink, flTime + 0.04)
 
 		return FMRES_IGNORED
 	}
@@ -880,6 +813,8 @@ public Ham_CWeapon_Deploy_Post(ent)
 	set_pev(id, pev_weaponmodel2, P_MDL)
 
 	util_sendweaponanim(id, ANIM_DRAW)
+	SoulReaperFX(id, 3, EF_DRAW_CLS, EF_DRAW_SPR, 0.15)
+	SoulReaperFX(id, 3, EF_IDLE_CLS, EF_IDLEA_SPR, 0.15)
 	set_pdata_float(ent, m_Weapon_flTimeWeaponIdle, 1.5, linux_diff_weapon)
 }
 
@@ -1035,7 +970,7 @@ public Ham_CWeapon_PrimaryAttack_Post(ent)
 		Stock_Muzzle(id, MUZZLE_C_CLS, MUZZ_C_SPR, 0.16)
 		emit_sound(id, CHAN_WEAPON, SND_SHOOTC, VOL_NORM, ATTN_NORM, 0, PITCH_NORM)
 		do_Helix(id)
-		
+
 		set_pdata_float(ent, m_Weapon_flNextPrimaryAttack, SPEED_C, linux_diff_weapon)
 		set_pdata_float(ent, m_Weapon_flNextSecondaryAttack, SPEED_C, linux_diff_weapon)
 		set_pdata_float(ent, m_Weapon_flTimeWeaponIdle, SPEED_C, linux_diff_weapon)
@@ -1050,7 +985,8 @@ public Ham_CWeapon_PrimaryAttack_Post(ent)
 			{
 				g_ShootCount[id] = 0
 				do_Sphere_Ent(id)
-				EF_BMode(id)
+				SoulReaperFX(id, 3, EF_B_CLASSNAME, EF_B_SPR, 0.15)
+				do_EF_Back(id)
 
 				emit_sound(id, CHAN_ITEM, SND_BALLS_APPEAR, 1.0, ATTN_NORM, 0, PITCH_NORM)
 			}
@@ -1331,32 +1267,153 @@ Armor_Trigger(id)
 
 /* =============================================================================  */
 /* ========================== Soulreaperex_Entities ============================  */
+do_EF_Back(id)
+{
+	new ent = engfunc(EngFunc_CreateNamedEntity, engfunc(EngFunc_AllocString, "info_target"))
+	if(!pev_valid(ent)) return
+
+	set_pev(ent, pev_classname, EF_BACK_CLS)
+	engfunc(EngFunc_SetModel, ent, SPHERE_SPR2)
+
+	set_pev(ent, pev_movetype, MOVETYPE_FLY)
+	set_pev(ent, pev_solid, SOLID_NOT)
+	set_pev(ent, pev_owner, id)
+	
+	new Float:pOrigin[3], Float:pAngles[3], Float:pVel[3]
+	pev(id, pev_origin, pOrigin)
+	pev(id, pev_v_angle, pAngles)
+	pev(id, pev_velocity, pVel)
+
+	// Konversi sudut ke radian (AMXX menggunakan derajat, floatcos/floatsin butuh radian)
+	new Float:fAngle[3]
+	fAngle[0] = pAngles[0] * (M_PI / 180.0) // pitch
+	fAngle[1] = pAngles[1] * (M_PI / 180.0) // yaw
+	fAngle[2] = pAngles[2] * (M_PI / 180.0) // roll
+
+	new Float:fDistance = 30.0 // jarak ke belakang
+	new Float:fHeight   = 8.0  // tinggi tambahan
+
+	// Hitung offset arah belakang (berlawanan arah hadap player)
+	// Arah hadap player: (cos(yaw), sin(yaw))
+	// Arah belakang: (-cos(yaw), -sin(yaw))
+	pOrigin[0] -= floatcos(fAngle[1]) * fDistance
+	pOrigin[1] -= floatsin(fAngle[1]) * fDistance
+	pOrigin[2] += fHeight
+
+	set_pev(ent, pev_velocity, pVel)
+	set_pev(ent, pev_angles, pAngles)
+	engfunc(EngFunc_SetOrigin, ent, pOrigin)
+
+	set_pev(ent, pev_frame, 0.0)
+	set_pev(ent, pev_framerate, 5.0)
+	set_pev(ent, pev_scale, EF_BACK_SCALE)
+	set_pev(ent, pev_rendermode, kRenderTransAdd)
+	set_pev(ent, pev_renderamt, 255.0)
+
+	set_pev(ent, pev_nextthink, get_gametime() + EF_BACK_NEXTTHINK)
+}
+
+public Entity_Think_EF_Back(ent)
+{
+	if(!IsValidPev(ent)) return FMRES_IGNORED
+	
+	new id = pev(ent, pev_owner)
+	
+	new Float:pOrigin[3], Float:pAngles[3], Float:pVel[3]
+	pev(id, pev_origin, pOrigin)
+	pev(id, pev_v_angle, pAngles)
+	pev(id, pev_velocity, pVel)
+
+	// Konversi sudut ke radian (AMXX menggunakan derajat, floatcos/floatsin butuh radian)
+	new Float:fAngle[3]
+	fAngle[0] = pAngles[0] * (M_PI / 180.0) // pitch
+	fAngle[1] = pAngles[1] * (M_PI / 180.0) // yaw
+	fAngle[2] = pAngles[2] * (M_PI / 180.0) // roll
+
+	new Float:fDistance = 30.0 // jarak ke belakang
+	new Float:fHeight   = 8.0  // tinggi tambahan
+
+	// Hitung offset arah belakang (berlawanan arah hadap player)
+	// Arah hadap player: (cos(yaw), sin(yaw))
+	// Arah belakang: (-cos(yaw), -sin(yaw))
+	pOrigin[0] -= floatcos(fAngle[1]) * fDistance
+	pOrigin[1] -= floatsin(fAngle[1]) * fDistance
+	pOrigin[2] += fHeight
+
+	set_pev(ent, pev_velocity, pVel)
+	set_pev(ent, pev_angles, pAngles)
+	engfunc(EngFunc_SetOrigin, ent, pOrigin)
+	
+	new Float:fFrame; pev(ent, pev_frame, fFrame)
+	
+	if(fFrame >= EF_BACK_FRAMEMAX)
+	{
+		set_pev(ent, pev_flags, FL_KILLME)
+		return FMRES_IGNORED
+	}
+	
+	fFrame += EF_BACK_FRAME
+	set_pev(ent, pev_frame, fFrame)
+	
+	set_pev(ent, pev_nextthink, get_gametime() + EF_BACK_NEXTTHINK)
+	
+	return FMRES_IGNORED
+}
+
+
 do_ShootAoe(id)
 {
-	static ent; ent = engfunc(EngFunc_CreateNamedEntity, engfunc(EngFunc_AllocString, "env_sprite"))
+	new ent = engfunc(EngFunc_CreateNamedEntity, engfunc(EngFunc_AllocString, "info_target"))
 	if(!pev_valid(ent)) return
 
 	set_pev(ent, pev_classname, SHOOTA_CLASSNAME)
 	engfunc(EngFunc_SetModel, ent, AOE_SPR)
-	set_pev(ent, pev_impulse, IMPULSE_SHOOT_SPRITE)
+
+	// Positioned by Aoe_UpdatePosition() on every think, no aim entity needed
+	set_pev(ent, pev_movetype, MOVETYPE_NOCLIP)
+	set_pev(ent, pev_solid, SOLID_NOT)
 	set_pev(ent, pev_owner, id)
+
 	set_pev(ent, pev_frame, 0.0)
 	set_pev(ent, pev_scale, 1.0)
-	set_pev(ent, pev_framerate, 5.0)
 	set_pev(ent, pev_rendermode, kRenderTransAdd)
 	set_pev(ent, pev_renderamt, 255.0)
-	set_pev(ent, pev_movetype, MOVETYPE_FOLLOW)
-	set_pev(ent, pev_solid, SOLID_NOT)
-	set_pev(ent, pev_aiment, id)
-	set_pev(ent, pev_spawnflags, SF_SPRITE_ONCE)
 
-	new Float:vAngle[3]
-	pev(id, pev_v_angle, vAngle)
-	set_pev(ent, pev_angles, vAngle)
+	// fuser1 = next damage tick, fuser2 = spawn time
+	set_pev(ent, pev_fuser1, get_gametime())
+	set_pev(ent, pev_fuser2, get_gametime())
 
-	dllfunc(DLLFunc_Spawn, ent)
+	// Place it right away so it never shows up at the map origin for one frame
+	Aoe_UpdatePosition(ent, id)
 
 	set_pev(ent, pev_nextthink, get_gametime() + 0.04)
+}
+
+// Put the AOE sprite in front of its owner and turn it with the owner's view
+Aoe_UpdatePosition(ent, id)
+{
+	new Float:vOrigin[3], Float:vAngle[3], Float:vVel[3]
+	new Float:vFwd[3], Float:vPos[3], Float:vSpriteAngles[3]
+
+	pev(id, pev_origin, vOrigin)
+	pev(id, pev_v_angle, vAngle)
+	pev(id, pev_velocity, vVel)
+
+	angle_vector(vAngle, ANGLEVECTOR_FORWARD, vFwd)
+
+	vPos[0] = vOrigin[0] + vFwd[0] * AOE_VISUAL_DISTANCE
+	vPos[1] = vOrigin[1] + vFwd[1] * AOE_VISUAL_DISTANCE
+	vPos[2] = vOrigin[2] + vFwd[2] * AOE_VISUAL_DISTANCE + AOE_VISUAL_OFFSET_Z
+
+	vSpriteAngles[0] = 90.0 + vAngle[0]
+	vSpriteAngles[1] = vAngle[1]
+	vSpriteAngles[2] = -45.0
+
+	engfunc(EngFunc_SetOrigin, ent, vPos)
+	set_pev(ent, pev_angles, vSpriteAngles)
+
+	// Same velocity as the owner: the client extrapolates between two think ticks
+	set_pev(ent, pev_velocity, vVel)
 }
 
 // Spawn one hovering sphere around the player
@@ -1371,7 +1428,7 @@ public do_Sphere_Ent(id)
 	new Float:vOrigin[3]
 	pev(id, pev_origin, vOrigin)
 
-	engfunc(EngFunc_SetModel, ent, SPHERE_SPR2)
+	engfunc(EngFunc_SetModel, ent, SPHERE_SPR)
 	engfunc(EngFunc_SetOrigin, ent, vOrigin)
 
 	set_pev(ent, pev_classname, SPHERE_CLASSNAME)
@@ -1380,9 +1437,10 @@ public do_Sphere_Ent(id)
 	set_pev(ent, pev_owner, id)
 	set_pev(ent, pev_frame, 0.0)
 	set_pev(ent, pev_fuser1, get_gametime() + 1.0)
+	set_pev(ent, pev_iuser1, 0)
 	set_pev(ent, pev_scale, SPHERE_SCALE)
 	set_pev(ent, pev_rendermode, kRenderTransAdd)
-	set_pev(ent, pev_renderamt, 255.0)
+	set_pev(ent, pev_renderamt, 1.0)
 
 	new slot = g_sphereCount[id]
 	g_sphereEnt[id][slot] = ent
@@ -1424,11 +1482,18 @@ public Entity_Think_Sphere_Projectile(ent)
 		engfunc(EngFunc_RemoveEntity, ent)
 		return FMRES_HANDLED
 	}
-	
-	new Float:flChangeSpr; pev(ent, pev_fuser1, flChangeSpr)
-	if (get_gametime() >= flChangeSpr)
+
+	new Float:flTimes; pev(ent, pev_fuser1, flTimes)
+	new iState; pev(ent, pev_iuser1, iState)
+	if (get_gametime() >= flTimes)
 	{
-		engfunc(EngFunc_SetModel, ent, SPHERE_SPR)
+		new Float:RenderAmt
+		pev(ent, pev_renderamt, RenderAmt)
+		if(RenderAmt < 255.0){
+			RenderAmt += 30.0
+		}
+		
+		set_pev(ent, pev_renderamt, RenderAmt)
 	}
 
 	// Simple sprite animation
@@ -1450,10 +1515,11 @@ public Entity_Think_Sphere_Projectile(ent)
 	return FMRES_HANDLED
 }
 
-// DEFAULT (no ATTACK2) = AUTO TRACKING:
+// DEFAULT AUTO TRACKING:
 // chase an enemy inside SPHERE_DETECT_RADIUS and hit it, otherwise orbit behind the player.
 update_orbit(ent, id, slot)
 {
+	
 	new Float:origin[3]
 	pev(id, pev_origin, origin)
 
@@ -1488,7 +1554,7 @@ update_orbit(ent, id, slot)
 	if (target > 0)
 	{
 		sphere_chase(ent, id, slot, target, SPHERE_TRACK_SPEED)
-		
+
 		return
 	}
 
@@ -1530,6 +1596,7 @@ update_orbit(ent, id, slot)
 // and switches to chasing an enemy as soon as one comes into range.
 update_missile(ent, id, slot)
 {
+	
 	// Expire after SPHERE_LIFETIME
 	if (get_gametime() >= g_sphereLaunchTime[id][slot] + SPHERE_LIFETIME)
 	{
@@ -1595,7 +1662,7 @@ update_missile(ent, id, slot)
 		emit_sound(ent, CHAN_ITEM, SND_SHOOTB_EXP, 1.0, ATTN_NORM, 0, PITCH_NORM)
 		new Float:eOrigin[3]
 		pev(ent, pev_origin, eOrigin)
-	
+
 		Create_Explosion(eOrigin)
 		do_Sphere_Damage(id, eOrigin, SPHERE_RADIUS, DAMAGE_EXP)
 		remove_sphere(id, slot)
@@ -1607,9 +1674,9 @@ sphere_hit(ent, id, slot, target)
 {
 	new Float:eOrigin[3]
 	pev(ent, pev_origin, eOrigin)
-	
+
 	Create_Explosion(eOrigin)
-	
+
 	do_Sphere_Damage(id, eOrigin, SPHERE_RADIUS, DAMAGE_EXP)
 
 	emit_sound(ent, CHAN_ITEM, SND_SHOOTB_EXP, 1.0, ATTN_NORM, 0, PITCH_NORM)
@@ -1729,7 +1796,7 @@ Entity_Touch_SPHERE(ent, other)
 
 	if (other == pev(ent, pev_owner))
 		return
-	
+
 	emit_sound(ent, CHAN_ITEM, SND_SHOOTB_EXP, 1.0, ATTN_NORM, 0, PITCH_NORM)
 
 	Entity_Remove(ent)
@@ -1739,10 +1806,10 @@ Entity_Remove(ent)
 {
 	if (!IsValidPev(ent))
 		return
-	
+
 	new Float:eOrigin[3]
 	pev(ent, pev_origin, eOrigin)
-	
+
 	Create_Explosion(eOrigin)
 
 	engfunc(EngFunc_RemoveEntity, ent)
@@ -1785,146 +1852,146 @@ remove_all_spheres(id)
 do_Sphere_Damage(id, Float:vecOrigin[3], Float:Rad, Float:Dmg)
 {
 	if(!IsValidPev(id)) return
-	
+
 	Radius_Damage(id, id, vecOrigin, Rad, Dmg, DMG_BULLET | DMG_NEVERGIB)
 }
 
 public do_Helix(id) {
-    if (!CanCreateEntity()) return
-    new Float:vOrigin[3], Float:vAngle[3], Float:vForward[3]
-    pev(id, pev_origin, vOrigin);
-    pev(id, pev_v_angle, vAngle)
-    engfunc(EngFunc_MakeVectors, vAngle); global_get(glb_v_forward, vForward)
+	if (!CanCreateEntity()) return
+	new Float:vOrigin[3], Float:vAngle[3], Float:vForward[3]
+	pev(id, pev_origin, vOrigin);
+	pev(id, pev_v_angle, vAngle)
+	engfunc(EngFunc_MakeVectors, vAngle); global_get(glb_v_forward, vForward)
 
-    new Float:vSpawnOrigin[3]
-    vSpawnOrigin[0] = vOrigin[0];
-    vSpawnOrigin[1] = vOrigin[1]; vSpawnOrigin[2] = vOrigin[2] + 15.0
+	new Float:vSpawnOrigin[3]
+	vSpawnOrigin[0] = vOrigin[0];
+	vSpawnOrigin[1] = vOrigin[1]; vSpawnOrigin[2] = vOrigin[2] + 15.0
 
-    new Float:vBeamAngles[3]
-    vBeamAngles[0] = -vAngle[0];
-    vBeamAngles[1] = vAngle[1]; vBeamAngles[2] = vAngle[2]
+	new Float:vBeamAngles[3]
+	vBeamAngles[0] = -vAngle[0];
+	vBeamAngles[1] = vAngle[1]; vBeamAngles[2] = vAngle[2]
 
-    new Float:vTarget[3], Float:vEnd[3]
-    vEnd[0] = vOrigin[0] + vForward[0] * HELIX_BEAM_LENGTH
-    vEnd[1] = vOrigin[1] + vForward[1] * HELIX_BEAM_LENGTH
-    vEnd[2] = vOrigin[2] + vForward[2] * HELIX_BEAM_LENGTH
+	new Float:vTarget[3], Float:vEnd[3]
+	vEnd[0] = vOrigin[0] + vForward[0] * HELIX_BEAM_LENGTH
+	vEnd[1] = vOrigin[1] + vForward[1] * HELIX_BEAM_LENGTH
+	vEnd[2] = vOrigin[2] + vForward[2] * HELIX_BEAM_LENGTH
 
-    for (new i = 0; i < 2; i++) {
-        new helixA = engfunc(EngFunc_CreateNamedEntity, engfunc(EngFunc_AllocString, "env_sprite"))
-        if (pev_valid(helixA)) {
-            engfunc(EngFunc_SetModel, helixA, HELIX_MDL2)
-            set_pev(helixA, pev_classname, HELIX_CLASSNAME)
-            set_pev(helixA, pev_spawnflags, SF_SPRITE_ONCE)
-            dllfunc(DLLFunc_Spawn, helixA)
-            set_pev(helixA, pev_solid, SOLID_NOT)
-            set_pev(helixA, pev_movetype, MOVETYPE_NONE)
+	for (new i = 0; i < 2; i++) {
+		new helixA = engfunc(EngFunc_CreateNamedEntity, engfunc(EngFunc_AllocString, "env_sprite"))
+		if (pev_valid(helixA)) {
+			engfunc(EngFunc_SetModel, helixA, HELIX_MDL2)
+			set_pev(helixA, pev_classname, HELIX_CLASSNAME)
+			set_pev(helixA, pev_spawnflags, SF_SPRITE_ONCE)
+			dllfunc(DLLFunc_Spawn, helixA)
+			set_pev(helixA, pev_solid, SOLID_NOT)
+			set_pev(helixA, pev_movetype, MOVETYPE_NONE)
 
-            new Float:flOffset = 60.0 + (float(i) * 250.0), Float:vPos[3]
-            vPos[0] = vSpawnOrigin[0] + vForward[0] * flOffset
-            vPos[1] = vSpawnOrigin[1] + vForward[1] * flOffset
-            vPos[2] = vSpawnOrigin[2] + vForward[2] * flOffset
-            engfunc(EngFunc_SetOrigin, helixA, vPos)
-			
+			new Float:flOffset = 60.0 + (float(i) * 250.0), Float:vPos[3]
+			vPos[0] = vSpawnOrigin[0] + vForward[0] * flOffset
+			vPos[1] = vSpawnOrigin[1] + vForward[1] * flOffset
+			vPos[2] = vSpawnOrigin[2] + vForward[2] * flOffset
+			engfunc(EngFunc_SetOrigin, helixA, vPos)
+
 			Radius_Damage(id, id, vPos, HELIX_BEAM_RADIUS, HELIX_DAMAGE, DMG_BULLET | DMG_NEVERGIB)
-			
-            set_pev(helixA, pev_angles, vBeamAngles)
-            set_pev(helixA, pev_rendermode, kRenderTransAdd)
-            set_pev(helixA, pev_renderamt, 255.0)
-            set_pev(helixA, pev_skin, 0); set_pev(helixA, pev_iuser1, 0); set_pev(helixA, pev_iuser2, 1)
-            set_pev(helixA, pev_owner, id)
-            set_pev(helixA, pev_nextthink, get_gametime() + (1.0 / HELIX_ANIM_FRAMERATE))
-        }
-    }
 
-    new helixB = engfunc(EngFunc_CreateNamedEntity, engfunc(EngFunc_AllocString, "env_sprite"))
-    if (pev_valid(helixB)) {
-        engfunc(EngFunc_SetModel, helixB, HELIX_MDL1)
-        set_pev(helixB, pev_classname, HELIX_CLASSNAME)
-        set_pev(helixB, pev_spawnflags, SF_SPRITE_ONCE)
-        dllfunc(DLLFunc_Spawn, helixB)
-        set_pev(helixB, pev_solid, SOLID_NOT);
-        set_pev(helixB, pev_movetype, MOVETYPE_NONE)
+			set_pev(helixA, pev_angles, vBeamAngles)
+			set_pev(helixA, pev_rendermode, kRenderTransAdd)
+			set_pev(helixA, pev_renderamt, 255.0)
+			set_pev(helixA, pev_skin, 0); set_pev(helixA, pev_iuser1, 0); set_pev(helixA, pev_iuser2, 1)
+			set_pev(helixA, pev_owner, id)
+			set_pev(helixA, pev_nextthink, get_gametime() + (1.0 / HELIX_ANIM_FRAMERATE))
+		}
+	}
 
-        new Float:flOffset = 60.0 + (2.0 * 250.0), Float:vPos[3]
-        vPos[0] = vSpawnOrigin[0] + vForward[0] * flOffset
-        vPos[1] = vSpawnOrigin[1] + vForward[1] * flOffset
-        vPos[2] = vSpawnOrigin[2] + vForward[2] * flOffset
-        engfunc(EngFunc_SetOrigin, helixB, vPos)
-		
+	new helixB = engfunc(EngFunc_CreateNamedEntity, engfunc(EngFunc_AllocString, "env_sprite"))
+	if (pev_valid(helixB)) {
+		engfunc(EngFunc_SetModel, helixB, HELIX_MDL1)
+		set_pev(helixB, pev_classname, HELIX_CLASSNAME)
+		set_pev(helixB, pev_spawnflags, SF_SPRITE_ONCE)
+		dllfunc(DLLFunc_Spawn, helixB)
+		set_pev(helixB, pev_solid, SOLID_NOT);
+		set_pev(helixB, pev_movetype, MOVETYPE_NONE)
+
+		new Float:flOffset = 60.0 + (2.0 * 250.0), Float:vPos[3]
+		vPos[0] = vSpawnOrigin[0] + vForward[0] * flOffset
+		vPos[1] = vSpawnOrigin[1] + vForward[1] * flOffset
+		vPos[2] = vSpawnOrigin[2] + vForward[2] * flOffset
+		engfunc(EngFunc_SetOrigin, helixB, vPos)
+
 		Radius_Damage(id, id, vPos, HELIX_BEAM_RADIUS, HELIX_DAMAGE, DMG_BULLET | DMG_NEVERGIB)
-		
-        set_pev(helixB, pev_angles, vBeamAngles)
-        set_pev(helixB, pev_rendermode, kRenderTransAdd);
-        set_pev(helixB, pev_renderamt, 255.0)
-        set_pev(helixB, pev_skin, 0); set_pev(helixB, pev_iuser1, 0);
-        set_pev(helixB, pev_iuser2, 2)
-        set_pev(helixB, pev_owner, id)
-        set_pev(helixB, pev_nextthink, get_gametime() + (1.0 / HELIX_ANIM_FRAMERATE))
-    }
 
-    engfunc(EngFunc_MessageBegin, MSG_PAS, SVC_TEMPENTITY, vSpawnOrigin, 0)
-    write_byte(0) 
-    engfunc(EngFunc_WriteCoord, vSpawnOrigin[0]);
-    engfunc(EngFunc_WriteCoord, vSpawnOrigin[1]); engfunc(EngFunc_WriteCoord, vSpawnOrigin[2])
-    engfunc(EngFunc_WriteCoord, vEnd[0]); engfunc(EngFunc_WriteCoord, vEnd[1]);
-    engfunc(EngFunc_WriteCoord, vEnd[2])
-    write_short(g_iSpriteLaser)
-    write_byte(0); write_byte(30); write_byte(10); write_byte(180)
-    write_byte(0); write_byte(255); write_byte(255);
-    write_byte(255)
-    write_byte(255); write_byte(20)
-    message_end()
+		set_pev(helixB, pev_angles, vBeamAngles)
+		set_pev(helixB, pev_rendermode, kRenderTransAdd);
+		set_pev(helixB, pev_renderamt, 255.0)
+		set_pev(helixB, pev_skin, 0); set_pev(helixB, pev_iuser1, 0);
+		set_pev(helixB, pev_iuser2, 2)
+		set_pev(helixB, pev_owner, id)
+		set_pev(helixB, pev_nextthink, get_gametime() + (1.0 / HELIX_ANIM_FRAMERATE))
+	}
 
-    for (new i = 1; i <= 32; i++) {
-        if (!sphere_is_enemy(id, i)) continue
-        pev(i, pev_origin, vTarget)
+	engfunc(EngFunc_MessageBegin, MSG_PAS, SVC_TEMPENTITY, vSpawnOrigin, 0)
+	write_byte(0)
+	engfunc(EngFunc_WriteCoord, vSpawnOrigin[0]);
+	engfunc(EngFunc_WriteCoord, vSpawnOrigin[1]); engfunc(EngFunc_WriteCoord, vSpawnOrigin[2])
+	engfunc(EngFunc_WriteCoord, vEnd[0]); engfunc(EngFunc_WriteCoord, vEnd[1]);
+	engfunc(EngFunc_WriteCoord, vEnd[2])
+	write_short(g_iSpriteLaser)
+	write_byte(0); write_byte(30); write_byte(10); write_byte(180)
+	write_byte(0); write_byte(255); write_byte(255);
+	write_byte(255)
+	write_byte(255); write_byte(20)
+	message_end()
 
-        new Float:vDirToTarget[3]
-        vDirToTarget[0] = vTarget[0] - vOrigin[0]
-        vDirToTarget[1] = vTarget[1] - vOrigin[1]
-        vDirToTarget[2] = vTarget[2] - vOrigin[2]
+	for (new i = 1; i <= 32; i++) {
+		if (!sphere_is_enemy(id, i)) continue
+		pev(i, pev_origin, vTarget)
 
-        new Float:flDistanceAlongBeam = xs_vec_dot(vDirToTarget, vForward)
+		new Float:vDirToTarget[3]
+		vDirToTarget[0] = vTarget[0] - vOrigin[0]
+		vDirToTarget[1] = vTarget[1] - vOrigin[1]
+		vDirToTarget[2] = vTarget[2] - vOrigin[2]
 
-        if (flDistanceAlongBeam > 0.0 && flDistanceAlongBeam < HELIX_BEAM_LENGTH) {
-            new Float:vProj[3]
-            vProj[0] = vOrigin[0] + vForward[0] * flDistanceAlongBeam
-            vProj[1] = vOrigin[1] + vForward[1] * flDistanceAlongBeam
-            vProj[2] = vOrigin[2] + vForward[2] * flDistanceAlongBeam
+		new Float:flDistanceAlongBeam = xs_vec_dot(vDirToTarget, vForward)
 
-            new Float:flDistToBeam = get_distance_f(vTarget, vProj)
+		if (flDistanceAlongBeam > 0.0 && flDistanceAlongBeam < HELIX_BEAM_LENGTH) {
+			new Float:vProj[3]
+			vProj[0] = vOrigin[0] + vForward[0] * flDistanceAlongBeam
+			vProj[1] = vOrigin[1] + vForward[1] * flDistanceAlongBeam
+			vProj[2] = vOrigin[2] + vForward[2] * flDistanceAlongBeam
 
-            if (flDistToBeam <= HELIX_BEAM_RADIUS) {
-                ExecuteHamB(Ham_TakeDamage, i, id, id, HELIX_BEAM_DAMAGE, DMG_ENERGYBEAM)
-                new Float:vPull[3]
-                vPull[0] = vProj[0] - vTarget[0];
-                vPull[1] = vProj[1] - vTarget[1]; vPull[2] = vProj[2] - vTarget[2]
-                vPull[0] -= vForward[0] * 0.5 * flDistToBeam;
-                vPull[1] -= vForward[1] * 0.5 * flDistToBeam
-                xs_vec_normalize(vPull, vPull)
+			new Float:flDistToBeam = get_distance_f(vTarget, vProj)
 
-                new Float:flPullStrength = HELIX_BEAM_PULL * (1.0 - (flDistToBeam / HELIX_BEAM_RADIUS))
-                new Float:vVel[3];
-                pev(i, pev_velocity, vVel)
-                vVel[0] = vVel[0] * 0.2 + vPull[0] * flPullStrength
-                vVel[1] = vVel[1] * 0.2 + vPull[1] * flPullStrength
-                vVel[2] = vVel[2] * 0.2 + vPull[2] * flPullStrength * 0.2
-                set_pev(i, pev_velocity, vVel)
-            }
-        }
-    }
+			if (flDistToBeam <= HELIX_BEAM_RADIUS) {
+				ExecuteHamB(Ham_TakeDamage, i, id, id, HELIX_BEAM_DAMAGE, DMG_ENERGYBEAM)
+				new Float:vPull[3]
+				vPull[0] = vProj[0] - vTarget[0];
+				vPull[1] = vProj[1] - vTarget[1]; vPull[2] = vProj[2] - vTarget[2]
+				vPull[0] -= vForward[0] * 0.5 * flDistToBeam;
+				vPull[1] -= vForward[1] * 0.5 * flDistToBeam
+				xs_vec_normalize(vPull, vPull)
+
+				new Float:flPullStrength = HELIX_BEAM_PULL * (1.0 - (flDistToBeam / HELIX_BEAM_RADIUS))
+				new Float:vVel[3];
+				pev(i, pev_velocity, vVel)
+				vVel[0] = vVel[0] * 0.2 + vPull[0] * flPullStrength
+				vVel[1] = vVel[1] * 0.2 + vPull[1] * flPullStrength
+				vVel[2] = vVel[2] * 0.2 + vPull[2] * flPullStrength * 0.2
+				set_pev(i, pev_velocity, vVel)
+			}
+		}
+	}
 }
 
 public Entity_Think_Helix(ent) {
-    if (!pev_valid(ent)) return
-    new id = pev(ent, pev_owner)
-    if (id < 1 || id > 32 || !is_user_alive(id)) { engfunc(EngFunc_RemoveEntity, ent); return; }
+	if (!pev_valid(ent)) return
+	new id = pev(ent, pev_owner)
+	if (id < 1 || id > 32 || !is_user_alive(id)) { engfunc(EngFunc_RemoveEntity, ent); return; }
 
-    new iSkin = pev(ent, pev_iuser1)
-    if (iSkin >= 14) { engfunc(EngFunc_RemoveEntity, ent); return; }
+	new iSkin = pev(ent, pev_iuser1)
+	if (iSkin >= 14) { engfunc(EngFunc_RemoveEntity, ent); return; }
 
-    set_pev(ent, pev_skin, iSkin); set_pev(ent, pev_iuser1, iSkin + 1)
-    set_pev(ent, pev_nextthink, get_gametime() + (1.0 / HELIX_ANIM_FRAMERATE))
+	set_pev(ent, pev_skin, iSkin); set_pev(ent, pev_iuser1, iSkin + 1)
+	set_pev(ent, pev_nextthink, get_gametime() + (1.0 / HELIX_ANIM_FRAMERATE))
 }
 
 // cl_righthand is a client cvar, so the server has to ask for it
@@ -1946,44 +2013,125 @@ public Cvar_RightHand_Result(id, const cvar[], const value[])
 		UnSet_BitVar(g_LeftHand, id)
 }
 
-public EF_BMode(id) {
-    if (!CanCreateEntity()) return
+public SoulReaperFX(id, attachment, const szClassname[], const szMdl[], Float:fScale)
+{
+	if(global_get(glb_maxEntities) - engfunc(EngFunc_NumberOfEntities) < 100) return
 
-    // Refresh the handedness; the result arrives well before the sprite expires
-    Query_RightHand(id)
-    new spr = engfunc(EngFunc_CreateNamedEntity, engfunc(EngFunc_AllocString, "env_sprite"))
-    if (!pev_valid(spr)) return
+	new ent = engfunc(EngFunc_CreateNamedEntity, engfunc(EngFunc_AllocString, "env_sprite"))
+	if(!pev_valid(ent)) return
 
-    set_pev(spr, pev_classname, EF_B_CLASSNAME)
-    engfunc(EngFunc_SetModel, spr, EF_B_SPR)
-    set_pev(spr, pev_spawnflags, SF_SPRITE_ONCE)
-    dllfunc(DLLFunc_Spawn, spr)
+	//ent_data
+	set_pev(ent, pev_classname, szClassname)
+	set_pev(ent, pev_spawnflags, SF_SPRITE_ONCE)
+	engfunc(EngFunc_SetModel, ent, szMdl)
+	
+	set_pev(ent, pev_owner, id)
+	set_pev(ent, pev_movetype, MOVETYPE_NONE) 
+	set_pev(ent, pev_solid, SOLID_NOT)
+	set_pev(ent, pev_gravity, 0.0)
+	set_pev(ent, pev_aiment, id)
+	set_pev(ent, pev_body, attachment)
+	set_pev(ent, pev_skin, id)
+	
+	//Render
+	set_pev(ent, pev_rendermode, kRenderTransAdd)
+	set_pev(ent, pev_renderamt, 255.0)
+	set_pev(ent, pev_scale, fScale)
+	
+	//frames
+	set_pev(ent, pev_frame, 0.0)
+	set_pev(ent, pev_framerate, 20.0)
 
-    set_pev(spr, pev_solid, SOLID_NOT)
-    set_pev(spr, pev_movetype, MOVETYPE_FOLLOW)
-    set_pev(spr, pev_aiment, id)
-    set_pev(spr, pev_rendermode, kRenderTransAdd)
-    set_pev(spr, pev_renderamt, 255.0)
-    set_pev(spr, pev_scale, EF_B_SPRITE_SCALE)
-    set_pev(spr, pev_framerate, 15.0)
-    set_pev(spr, pev_owner, id)
-    set_pev(spr, pev_impulse, EF_B_SPRITE_IMPULSE)
-    set_pev(spr, pev_fuser1, get_gametime() + EF_B_SPRITE_LIFETIME)
-    set_pev(spr, pev_nextthink, get_gametime() + 0.1)
+	dllfunc(DLLFunc_Spawn, ent)
+	
+	set_pev(ent, pev_nextthink, get_gametime() + 0.01) 
 }
 
-public Entity_Think_EF_BMode(ent) {
-    if (!pev_valid(ent)) return
-    new Float:flDieTime; pev(ent, pev_fuser1, flDieTime)
-    if (get_gametime() >= flDieTime) { engfunc(EngFunc_RemoveEntity, ent); return; }
+public Entity_Think_EF_BMode(ent)
+{
+	if(!IsValidPev(ent)) return
 
-    new id = pev(ent, pev_owner)
-    if (id < 1 || id > 32 || !is_user_alive(id)) { engfunc(EngFunc_RemoveEntity, ent); return; }
+	new id = pev(ent, pev_owner)
 
-    // Same reason as in fw_AddToFullPack_Post: use g_ActiveWpn, not the weapon's pev_impulse
-    if (!Get_BitVar(g_ActiveWpn, id) || get_user_weapon(id) != CSW_SOULREAPEREX) { engfunc(EngFunc_RemoveEntity, ent); return; }
+	if(!is_user_alive(id) || !Get_BitVar(g_ActiveWpn, id) || get_user_weapon(id) != CSW_SOULREAPEREX)
+	{
+		set_pev(ent, pev_flags, FL_KILLME)
+		return
+	}
 
-    set_pev(ent, pev_nextthink, get_gametime() + 0.1)
+	new Float:fFrame
+	pev(ent, pev_frame, fFrame)
+	fFrame += 1.0
+
+	if(fFrame >= EF_B_FRAME_MAX)
+	{
+		set_pev(ent, pev_flags, FL_KILLME)
+		return
+	}
+
+	set_pev(ent, pev_frame, fFrame)
+	
+	set_pev(ent, pev_nextthink, get_gametime() + 0.01) 
+}
+
+public Entity_Think_EF_Draw(ent)
+{
+	if(!IsValidPev(ent)) return
+
+	new id = pev(ent, pev_owner)
+
+	if(!is_user_alive(id) || !Get_BitVar(g_ActiveWpn, id) || get_user_weapon(id) != CSW_SOULREAPEREX)
+	{
+		set_pev(ent, pev_flags, FL_KILLME)
+		return
+	}
+
+	new Float:fFrame
+	pev(ent, pev_frame, fFrame)
+	fFrame += 1.0
+
+	if(fFrame >= 33.0)
+	{
+		set_pev(ent, pev_flags, FL_KILLME)
+		return
+	}
+
+	set_pev(ent, pev_frame, fFrame)
+	
+	set_pev(ent, pev_nextthink, get_gametime() + 0.01) 
+}
+
+public Entity_Think_EF_ACMode(ent)
+{
+	if(!IsValidPev(ent)) return
+
+	new id = pev(ent, pev_owner)
+
+	if(!is_user_alive(id) || !Get_BitVar(g_ActiveWpn, id) || get_user_weapon(id) != CSW_SOULREAPEREX)
+	{
+		set_pev(ent, pev_flags, FL_KILLME)
+		return
+	}
+	
+	if(Get_BitVar(g_ActiveHelix, id))
+	{
+		engfunc(EngFunc_SetModel, ent, EF_IDLEC_SPR)
+	}else{
+		engfunc(EngFunc_SetModel, ent, EF_IDLEA_SPR)
+	}
+
+	new Float:fFrame
+	pev(ent, pev_frame, fFrame)
+	fFrame += 1.0
+
+	if(fFrame >= 44.0)
+	{
+		fFrame = 0.0
+	}
+
+	set_pev(ent, pev_frame, fFrame)
+	
+	set_pev(ent, pev_nextthink, get_gametime() + 0.01) 
 }
 /* =============================================================================  */
 /* =============================================================================  */
@@ -2344,21 +2492,21 @@ stock hook_ent(ent, Float:target[3], Float:speed)
 
 stock Create_Explosion(Float:origin[3], iScale = 10, iFramerate = 15)
 {
-    message_begin(MSG_BROADCAST, SVC_TEMPENTITY);
-    write_byte(TE_EXPLOSION);
-    write_coord(floatround(origin[0]));
-    write_coord(floatround(origin[1]));
-    write_coord(floatround(origin[2]));
-    write_short(g_iExplosionSprite);
-    write_byte(iScale);
-    write_byte(iFramerate);
-    write_byte(TE_EXPLFLAG_NOSOUND);
-    
-    message_end();
+	message_begin(MSG_BROADCAST, SVC_TEMPENTITY);
+	write_byte(TE_EXPLOSION);
+	write_coord(floatround(origin[0]));
+	write_coord(floatround(origin[1]));
+	write_coord(floatround(origin[2]));
+	write_short(g_iExplosionSprite);
+	write_byte(iScale);
+	write_byte(iFramerate);
+	write_byte(TE_EXPLFLAG_NOSOUND);
+
+	message_end();
 }
 
 stock bool:CanCreateEntity() {
-    return (global_get(glb_maxEntities) - engfunc(EngFunc_NumberOfEntities) >= 100)
+	return (global_get(glb_maxEntities) - engfunc(EngFunc_NumberOfEntities) >= 100)
 }
 
 /* =============================================================================  */
