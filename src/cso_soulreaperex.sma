@@ -163,7 +163,6 @@ enum
 #define SPEED_C					1.5
 #define RECOIL					0.75
 
-
 #define DAMAGEA					15.0
 #define DAMAGE_EXP				25.0
 #define DAMAGE_AOE1				30.0
@@ -171,10 +170,10 @@ enum
 
 #define RELOAD_TIME 			2.0
 #define CLIP 					80
-#define BPAMMO 					250
+#define BPAMMO 					240
 
 // Arcane Armor (passive)
-#define ARMOR_HITS_TO_ACTIVATE	10		// Bullet hits on enemies needed to activate the armor
+#define ARMOR_HITS_TO_ACTIVATE	20		// Bullet hits on enemies needed to activate the armor
 #define ARMOR_RADIUS			250.0	// Blast radius when the armor triggers
 #define ARMOR_DAMAGE			100.0	// Blast damage per enemy
 #define ARMOR_KNOCKBACK			800.0	// Horizontal knockback speed
@@ -276,7 +275,7 @@ enum
 #define HELIX_BEAM_LENGTH 800.0
 #define HELIX_KNOCKBACK 5.0
 #define HELIX_MAX_CHARGE 110		// secondary ammo (charge) capacity
-#define HELIX_MIN_CHARGE HELIX_MAX_CHARGE	// charge needed to activate helix (full by default)
+#define HELIX_MIN_CHARGE 30	// charge needed to activate helix (full by default)
 #define HELIX_REFILL_TIME 1.5		// seconds between each refill tick
 #define HELIX_REFILL_AMOUNT 5		// charge restored per refill tick
 #define HELIX_CONSUME_TIME 0.6		// seconds between each consume tick
@@ -544,7 +543,7 @@ public Start_Charge(id)
 {
 	new Float:flTime = get_gametime()
 
-	SetSecondaryAmmo(id, HELIX_MAX_CHARGE)
+	SetSecondaryAmmo(id, 10)
 	g_NextCharge[id] = flTime + HELIX_REFILL_TIME
 	g_NextConsume[id] = flTime + HELIX_CONSUME_TIME
 }
@@ -2220,17 +2219,14 @@ public Entity_Think_EF_ACMode(ent)
 		return
 	}
 	
-	if(get_gametime() < g_flIdleHideUntil[id])
+	if(get_gametime() < g_flIdleHideUntil[id] || GetSecondaryAmmo(id) <= 39)
 	{
-		// hide
 		set_pev(ent, pev_effects, pev(ent, pev_effects) | EF_NODRAW)
-		
 		set_pev(ent, pev_nextthink, get_gametime() + EF_FX_THINK)
 		return
 	}
 	else
 	{
-		// show
 		if(pev(ent, pev_effects) & EF_NODRAW)
 		{
 			set_pev(ent, pev_effects, pev(ent, pev_effects) & ~EF_NODRAW)
