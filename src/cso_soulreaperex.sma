@@ -7,12 +7,15 @@
 #include <fun>
 #include <cstrike>
 
-#define PLUGIN_NAME    "Arcane Naberius"
+#define PLUGIN_NAME    "Naberius and Naberius SP"
 #define PLUGIN_VERSION "1.0"
 #define PLUGIN_AUTHOR  "Mellowzy"
 
 //autoprecachesound from .mdl (5004)
 #define PrecacheSoundsFromModel 1
+
+//using naberius <comment it if you want using arcane naberius>
+#define UsingNaberius
 
 #if !defined NULLENT
 	#define NULLENT -1
@@ -21,17 +24,79 @@
 /* ========================== CSOWPN_Data =======================================  */
 #define CSW_SOULREAPEREX CSW_M4A1
 #define WEAPON_REFERENCE "weapon_m4a1"
-#define WEAPON_SPR "weapon_soulreaperex"
 #define WEAPON_IMPULSE 3399012
 #define WEAPON_EVENTS "events/m4a1.sc"
 #define OLD_MDL_REFERENCE "models/w_m4a1.mdl"
 #define REFERENCE_BODY_NUM		0
 /* =============================================================================  */
 /* ========================== Soulreaperex_Resources ============================  */
+
+/* ============================== Naberius ===================================  */
 // weapons
+#if defined UsingNaberius
+#define P_MDL "models/mellowzy/p_soulreaper.mdl"
+#define V_MDL "models/mellowzy/v_soulreaper_a.mdl"
+#define V_MDL_S "models/mellowzy/v_soulreaper_c.mdl"
+#define W_MDL "models/mellowzy/w_soulreaper.mdl"
+
+//sounds
+#define SND_SHOOTA "weapons/soulreaper-1.wav"
+#define SND_SHOOTB "weapons/soulreaper-2.wav"
+#define SND_SHOOTC "weapons/soulreaper-3.wav"
+#define SND_SHOOTB_EXP "weapons/soulreaper-2_exp.wav"
+#define SND_BALLS_APPEAR "weapons/soulreaper_bmod_start.wav"
+
+//entities
+#define HELIX_MDL1 "models/mellowzy/ef_soulreaper_shoot_c_fx.mdl"
+#define HELIX_MDL2 "models/mellowzy/ef_soulreaper_shoot_c02_fx.mdl"
+#define EXPLOSION_MDL "sprites/mellowzy/ef_soulreaper_exp.spr"
+#define AOE_SPR "sprites/mellowzy/ef_soulreaper_p.spr"
+#define SPHERE_SPR "sprites/mellowzy/ef_soulreaper_sphere.spr"
+#define SPHERE_SPR2 "sprites/mellowzy/ef_soulreaper_sphere02.spr"
+#define HELIX_SPR_LASER "sprites/mellowzy/ef_soulreaper_laser.spr"
+#define EF_B_SPR "sprites/mellowzy/ef_soulreaper_bmode.spr"
+#define MUZZ_A_SPR "sprites/mellowzy/muzzleflash450.spr"
+#define MUZZ_C_SPR "sprites/mellowzy/muzzleflash452.spr"
+
+#define EF_DRAW_SPR "sprites/mellowzy/ef_soulreaper_draw.spr"
+#define EF_IDLEA_SPR "sprites/mellowzy/ef_soulreaper_amode.spr"
+#define EF_IDLEC_SPR "sprites/mellowzy/ef_soulreaper_cmode.spr"
+
+#define SMOKE_SPR "sprites/wall_puff1.spr"
+
+#define WEAPON_SPR "weapon_soulreaper"
+#define WEAPON_TXT "sprites/weapon_soulreaper.txt"
+
+#define MUZZLEFLASH_MAX_FRAMES 8.0
+#define MAX_SHOOT_COUNT 10
+
+new const ExtraSprites[][] =
+{
+	"sprites/640hud224.spr",
+	"sprites/640hud241.spr"
+}
+
+enum
+{
+	ANIM_IDLE = 0,
+	ANIM_IDLEC,
+	ANIM_DRAW,
+	ANIM_RELOADA,
+	ANIM_RELOADC,
+	ANIM_SHOOTA,
+	ANIM_SHOOTBA,
+	ANIM_SHOOTC,
+	ANIM_CHANGECA
+}
+
+#endif
+
+/* ============================== Arcane Naberius ===================================  */
+
+#if !defined UsingNaberius
 #define P_MDL "models/mellowzy/p_soulreaperex.mdl"
-#define V_MDL "models/mellowzy/v_soulreaperexfx_s.mdl"
-#define V_MDL_S "models/mellowzy/v_soulreaperexfx_s_pink.mdl"
+#define V_MDL "models/mellowzy/v_soulreaperex_a.mdl"
+#define V_MDL_S "models/mellowzy/v_soulreaperex_c.mdl"
 #define W_MDL "models/mellowzy/w_soulreaperex.mdl"
 
 //sounds
@@ -59,11 +124,33 @@
 
 #define SMOKE_SPR "sprites/wall_puff1.spr"
 
+#define WEAPON_SPR "weapon_soulreaperex"
+#define WEAPON_TXT "sprites/weapon_soulreaperex.txt"
+
+#define MUZZLEFLASH_MAX_FRAMES 15.0
+#define MAX_SHOOT_COUNT 9
+
 new const ExtraSprites[][] =
 {
 	"sprites/640hud224.spr",
 	"sprites/640hud260.spr"
 }
+
+enum
+{
+	ANIM_IDLE = 0,
+	ANIM_SHOOTA,
+	ANIM_RELOADA,
+	ANIM_DRAW,
+	ANIM_SHOOTBA,
+	ANIM_SHOOTBC,
+	ANIM_IDLEC,
+	ANIM_SHOOTC,
+	ANIM_RELOADC,
+	ANIM_CHANGECA
+}
+
+#endif
 /* =============================================================================  */
 /* ========================== Soulreaperex_Tunables ============================  */
 #define ACC_SPREAD_STAND		0.004
@@ -242,20 +329,6 @@ new const iWeaponList[] =
 	4, 90, -1, -1, 0, 6, CSW_M4A1, 0
 };
 
-enum
-{
-	ANIM_IDLE = 0,
-	ANIM_SHOOTA,
-	ANIM_RELOADA,
-	ANIM_DRAW,
-	ANIM_SHOOTBA,
-	ANIM_SHOOTBC,
-	ANIM_IDLEC,
-	ANIM_SHOOTC,
-	ANIM_RELOADC,
-	ANIM_CHANGECA
-}
-
 new g_ActiveWpn, g_ActiveHelix, g_ArmorActive, g_LeftHand, g_weapon_event, g_HamBot
 new g_Old_Weapon[33], g_Clip[33], g_ReClip[33]
 new g_ShootCount[33], g_Sphere[33]
@@ -268,9 +341,8 @@ new Float:g_NextConsume[33], Float:g_NextCharge[33]
 // Arcane Armor state
 new g_ArmorHits[33], g_ArmorUses[33]
 new Float:g_ArmorCooldownEnd[33]
-
 new Float:g_flNextTrace[33];
-
+new Float:g_flIdleHideUntil[33]
 new g_pcvFriendlyFire
 
 //ent
@@ -356,7 +428,7 @@ public plugin_precache()
 	util_precache_sounds_from_model(V_MDL_S);
 #endif
 
-	engfunc(EngFunc_PrecacheGeneric, "sprites/weapon_soulreaperex.txt")
+	engfunc(EngFunc_PrecacheGeneric, WEAPON_TXT)
 	for(new i = 0; i < sizeof ExtraSprites; i++)
 		engfunc(EngFunc_PrecacheGeneric, ExtraSprites[i])
 
@@ -432,6 +504,8 @@ public CSOWPN_Give(id)
 	fm_give_item(id, WEAPON_REFERENCE)
 	Start_Charge(id)
 	ResetMode(id)
+	
+	g_flIdleHideUntil[id] = get_gametime() + 1.5
 
 	static Ent; Ent = fm_get_user_weapon_entity(id, CSW_SOULREAPEREX)
 	if(pev_valid(Ent))
@@ -493,7 +567,7 @@ ResetPlayer(id)
 	g_Old_Weapon[id] = 0
 	g_NextConsume[id] = 0.0
 	g_NextCharge[id] = 0.0
-
+	g_flIdleHideUntil[id] = 0.0
 	Armor_Reset(id)
 	g_ArmorUses[id] = 0
 	g_ArmorCooldownEnd[id] = 0.0
@@ -638,7 +712,6 @@ public fw_Entity_Think(ent)
 		return FMRES_IGNORED
 	}
 
-	// FMRES_SUPERCEDE: block the env_sprite's own think, it would overwrite nextthink and turn the sprite off
 	if(equal(classname, EF_DRAW_CLS))
 	{
 		Entity_Think_EF_Draw(ent)
@@ -673,13 +746,13 @@ public fw_Entity_Think(ent)
 		}
 
 		static Float:Frame; pev(ent, pev_frame, Frame)
-		if(Frame > 14.0)
+		if(Frame >= MUZZLEFLASH_MAX_FRAMES)
 		{
 			set_pev(ent, pev_flags, FL_KILLME)
 			return FMRES_IGNORED
 		}
 
-		Frame += 2.0
+		Frame += 1.0
 		set_pev(ent, pev_frame, Frame)
 		set_pev(ent, pev_nextthink, get_gametime() + 0.04)
 
@@ -847,6 +920,8 @@ public Ham_CWeapon_Deploy_Post(ent)
 	set_pev(id, pev_weaponmodel2, P_MDL)
 
 	util_sendweaponanim(id, ANIM_DRAW)
+	
+	g_flIdleHideUntil[id] = get_gametime() + 1.5
 
 	// The idle effect lives as long as the weapon is held, so rebuild it on every deploy
 	Idle_Remove(id)
@@ -957,6 +1032,8 @@ public Ham_CWeapon_Reload_Post(ent)
 		return HAM_IGNORED
 	if(g_ReClip[id] == -1)
 		return HAM_IGNORED
+	
+	g_flIdleHideUntil[id] = get_gametime() + RELOAD_TIME
 
 	set_pdata_int(ent, m_Weapon_iClip, g_ReClip[id], linux_diff_weapon)
 	set_pdata_int(ent, m_Weapon_fInReload, 1, linux_diff_weapon)
@@ -1019,7 +1096,7 @@ public Ham_CWeapon_PrimaryAttack_Post(ent)
 		if(g_sphereCount[id] < SPHERE_MAX)
 		{
 			g_ShootCount[id]++
-			if(g_ShootCount[id] >= 10)
+			if(g_ShootCount[id] >= MAX_SHOOT_COUNT)
 			{
 				g_ShootCount[id] = 0
 				do_Sphere_Ent(id)
@@ -1128,7 +1205,7 @@ CWeapon_Soulreaperex(id, ent, button)
 		// Launch one hovering sphere at its locked enemy (returns 0 if nothing to launch)
 		if(!launch_sphere(id)) return
 
-		util_sendweaponanim(id, Get_BitVar(g_ActiveHelix, id) ? ANIM_SHOOTBC : ANIM_SHOOTBA)
+		util_sendweaponanim(id, Get_BitVar(g_ActiveHelix, id) ? ANIM_SHOOTC : ANIM_SHOOTBA)
 		emit_sound(id, CHAN_WEAPON, SND_SHOOTB, VOL_NORM, ATTN_NORM, 0, PITCH_NORM)
 
 		set_pdata_float(ent, m_Weapon_flNextPrimaryAttack, SPEED_B, linux_diff_weapon)
@@ -2141,6 +2218,23 @@ public Entity_Think_EF_ACMode(ent)
 	{
 		set_pev(ent, pev_flags, FL_KILLME)
 		return
+	}
+	
+	if(get_gametime() < g_flIdleHideUntil[id])
+	{
+		// hide
+		set_pev(ent, pev_effects, pev(ent, pev_effects) | EF_NODRAW)
+		
+		set_pev(ent, pev_nextthink, get_gametime() + EF_FX_THINK)
+		return
+	}
+	else
+	{
+		// show
+		if(pev(ent, pev_effects) & EF_NODRAW)
+		{
+			set_pev(ent, pev_effects, pev(ent, pev_effects) & ~EF_NODRAW)
+		}
 	}
 
 	// Swap the sprite only when the mode changes (pev_iuser1: 0 = A mode, 1 = C mode)
