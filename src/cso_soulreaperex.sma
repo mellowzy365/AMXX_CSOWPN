@@ -441,7 +441,7 @@ public plugin_precache()
 
 	engfunc(EngFunc_PrecacheGeneric, WEAPON_TXT)
 	for(new i = 0; i < sizeof ExtraSprites; i++)
-		engfunc(EngFunc_PrecacheGeneric, ExtraSprites[i])
+		engfunc(EngFunc_PrecacheModel, ExtraSprites[i])
 
 	g_SmokePuff_SprId = engfunc(EngFunc_PrecacheModel, SMOKE_SPR)
 
@@ -499,8 +499,6 @@ public Do_RegisterHam_Bot(id)
 public client_disconnected(id)
 {
 	UnSet_BitVar(g_LeftHand, id)
-	// remove_sphere() shifts the array, so a plain 0..MAX loop would skip slots.
-	// CSOWPN_Remove -> ResetPlayer already clears every sphere safely.
 	CSOWPN_Remove(id)
 }
 
@@ -1494,7 +1492,7 @@ do_ShootAoe(id)
 	set_pev(ent, pev_owner, id)
 
 	set_pev(ent, pev_frame, 0.0)
-	set_pev(ent, pev_scale, 1.0)
+	set_pev(ent, pev_scale, 1.5)
 	set_pev(ent, pev_rendermode, kRenderTransAdd)
 	set_pev(ent, pev_renderamt, 255.0)
 
