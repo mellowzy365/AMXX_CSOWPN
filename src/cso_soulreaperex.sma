@@ -28,12 +28,18 @@
 #define REFERENCE_BODY_NUM		0
 /* =============================================================================  */
 /* ========================== Soulreaperex_Resources ============================  */
-
 // weapons
 #define P_MDL "models/mellowzy/p_soulreaperex.mdl"
 #define V_MDL "models/mellowzy/v_soulreaperexfx_s.mdl"
 #define V_MDL_S "models/mellowzy/v_soulreaperexfx_s_pink.mdl"
 #define W_MDL "models/mellowzy/w_soulreaperex.mdl"
+
+//sounds
+#define SND_SHOOTA "weapons/soulreaper-1.wav"
+#define SND_SHOOTB "weapons/soulreaper-2.wav"
+#define SND_SHOOTC "weapons/soulreaperex-3.wav"
+#define SND_SHOOTB_EXP "weapons/soulreaper-2_exp.wav"
+#define SND_BALLS_APPEAR "weapons/soulreaper_bmod_start.wav"
 
 //entities
 #define HELIX_MDL1 "models/mellowzy/ef_soulreaperex_shoot_c_fx.mdl"
@@ -50,13 +56,6 @@
 #define EF_DRAW_SPR "sprites/mellowzy/ef_soulreaperex_draw.spr"
 #define EF_IDLEA_SPR "sprites/mellowzy/ef_soulreaperex_amode.spr"
 #define EF_IDLEC_SPR "sprites/mellowzy/ef_soulreaperex_cmode.spr"
-
-//sounds
-#define SND_SHOOTA "weapons/soulreaper-1.wav"
-#define SND_SHOOTB "weapons/soulreaper-2.wav"
-#define SND_SHOOTC "weapons/soulreaperex-3.wav"
-#define SND_SHOOTB_EXP "weapons/soulreaper-2_exp.wav"
-#define SND_BALLS_APPEAR "weapons/soulreaper_bmod_start.wav"
 
 #define SMOKE_SPR "sprites/wall_puff1.spr"
 
@@ -88,7 +87,7 @@ new const ExtraSprites[][] =
 #define BPAMMO 					250
 
 // Arcane Armor (passive)
-#define ARMOR_HITS_TO_ACTIVATE	30		// Bullet hits on enemies needed to activate the armor
+#define ARMOR_HITS_TO_ACTIVATE	10		// Bullet hits on enemies needed to activate the armor
 #define ARMOR_RADIUS			250.0	// Blast radius when the armor triggers
 #define ARMOR_DAMAGE			100.0	// Blast damage per enemy
 #define ARMOR_KNOCKBACK			800.0	// Horizontal knockback speed
@@ -128,7 +127,7 @@ new const ExtraSprites[][] =
 #define SPHERE_DETECT_RADIUS 220.0      // Radius to detect enemies
 #define SPHERE_MAX           3          // Max hovering spheres
 #define SPHERE_HOVER_HEIGHT  20.0      // Height of the ring center above the player origin
-#define SPHERE_BACK_DIST     25.0      // Distance of the ring behind the player's back
+#define SPHERE_BACK_DIST     35.0      // Distance of the ring behind the player's back
 #define SPHERE_HOVER_RADIUS  20.0      // Radius of the orbit circle
 #define SPHERE_ORBIT_GAP     120.0      // Angle (deg) between 2 spheres on the ring (360 / SPHERE_MAX = evenly spaced)
 #define SPHERE_ORBIT_SPEED   100.0      // Orbit rotation speed (deg/sec), clockwise seen from behind
@@ -143,6 +142,7 @@ new const ExtraSprites[][] =
 	#define M_PI 3.14159265358979323846
 #endif
 
+//bmode
 //ef_back
 #define EF_BACK_CLS "ef_back"
 #define EF_BACK_NEXTTHINK 0.04
@@ -152,9 +152,15 @@ new const ExtraSprites[][] =
 
 //bmode
 #define EF_B_CLASSNAME "SoulReaper_ef_b_mode"
-#define EF_B_FRAME_MAX 			30
-#define EF_B_SPRITE_SCALE       0.25
-#define EF_B_IMPULSE			10029310   
+#define EF_B_FRAME_MAX 30
+
+//sprites attached to the view model (draw / idle / bmode)
+#define EF_FX_FPS          15.0   // Animation speed (frames per second)
+#define EF_FX_THINK        0.04   // Think interval
+#define EF_FX_IMPULSE      10029310   // Marks the attached sprites so AddToFullPack can recognise them
+#define OBS_IN_EYE         4      // pev_iuser1 value of a spectator watching in first person
+#define EF_DRAW_FRAMEMAX   33.0   // Frame count of the draw sprite
+#define EF_IDLE_FRAMEMAX   44.0   // Frame count of the idle sprites (loop length)
 
 //aoe
 #define AOE_FRAMEMAX 44.0
@@ -288,6 +294,7 @@ public plugin_init()
 	register_forward(FM_UpdateClientData, "fw_UpdateClientData_Post", true)
 	register_forward(FM_PlaybackEvent, "fw_PlaybackEvent")
 	register_forward(FM_SetModel, "fw_SetModel")
+	register_forward(FM_AddToFullPack, "fw_AddToFullPack_Post", true)
 	register_forward(FM_Think, "fw_Entity_Think")
 	register_forward(FM_Touch, "fw_Entity_Touch")
 
@@ -577,6 +584,32 @@ public fw_SetModel(entity, const model[])
 	return FMRES_IGNORED
 }
 
+// Attached sprites (draw / idle / bmode) are only meant for the owner's view model:
+// hide them for everybody else, per client, without touching the entity itself
+public fw_AddToFullPack_Post(es, e, ent, host, flags, player, pSet)
+{
+	if(player || !pev_valid(ent))
+		return FMRES_IGNORED
+
+	if(pev(ent, pev_impulse) != EF_FX_IMPULSE)
+		return FMRES_IGNORED
+
+	new id = pev(ent, pev_owner)
+
+	// The owner
+	if(host == id)
+		return FMRES_IGNORED
+
+	// A dead player watching the owner in first person sees the same view model
+	if(is_user_connected(host) && !is_user_alive(host) && pev(host, pev_iuser1) == OBS_IN_EYE && pev(host, pev_iuser2) == id)
+		return FMRES_IGNORED
+
+	set_es(es, ES_RenderAmt, 0.0)
+	set_es(es, ES_Effects, get_es(es, ES_Effects) | EF_NODRAW)
+
+	return FMRES_IGNORED
+}
+
 public fw_Entity_Think(ent)
 {
 	if(!pev_valid(ent))
@@ -586,7 +619,7 @@ public fw_Entity_Think(ent)
 	pev(ent, pev_classname, classname, charsmax(classname))
 
 	static iOwner; iOwner = pev(ent, pev_owner)
-	
+
 	if(equal(classname, EF_BACK_CLS))
 	{
 		Entity_Think_EF_Back(ent)
@@ -604,23 +637,24 @@ public fw_Entity_Think(ent)
 		Entity_Think_Sphere_Projectile(ent)
 		return FMRES_IGNORED
 	}
-	
+
+	// FMRES_SUPERCEDE: block the env_sprite's own think, it would overwrite nextthink and turn the sprite off
 	if(equal(classname, EF_DRAW_CLS))
 	{
 		Entity_Think_EF_Draw(ent)
-		return FMRES_IGNORED
+		return FMRES_SUPERCEDE
 	}
-	
+
 	if(equal(classname, EF_IDLE_CLS))
 	{
 		Entity_Think_EF_ACMode(ent)
-		return FMRES_IGNORED
+		return FMRES_SUPERCEDE
 	}
 
 	if(equal(classname, EF_B_CLASSNAME))
 	{
 		Entity_Think_EF_BMode(ent)
-		return FMRES_IGNORED
+		return FMRES_SUPERCEDE
 	}
 
 	if(equal(classname, MUZZLE_A_CLS))
@@ -813,8 +847,12 @@ public Ham_CWeapon_Deploy_Post(ent)
 	set_pev(id, pev_weaponmodel2, P_MDL)
 
 	util_sendweaponanim(id, ANIM_DRAW)
+
+	// The idle effect lives as long as the weapon is held, so rebuild it on every deploy
+	Idle_Remove(id)
+	SoulReaperFX(id, 4, EF_IDLE_CLS, EF_IDLEA_SPR, 0.15)
 	SoulReaperFX(id, 3, EF_DRAW_CLS, EF_DRAW_SPR, 0.15)
-	SoulReaperFX(id, 3, EF_IDLE_CLS, EF_IDLEA_SPR, 0.15)
+
 	set_pdata_float(ent, m_Weapon_flTimeWeaponIdle, 1.5, linux_diff_weapon)
 }
 
@@ -993,6 +1031,7 @@ public Ham_CWeapon_PrimaryAttack_Post(ent)
 		}
 
 		util_sendweaponanim(id, ANIM_SHOOTA)
+		Armor_AddHit(id)
 		do_ShootAoe(id)
 		Stock_Muzzle(id, MUZZLE_A_CLS, MUZZ_A_SPR, 0.15)
 		emit_sound(id, CHAN_WEAPON, SND_SHOOTA, VOL_NORM, ATTN_NORM, 0, PITCH_NORM)
@@ -1028,7 +1067,7 @@ public fw_TakeDamage_Pre(victim, inflictor, attacker, Float:damage, damagebits)
 	if(!Get_BitVar(g_ActiveWpn, victim))
 		return HAM_IGNORED
 
-	if(damagebits & DMG_FALL)
+	if(Get_BitVar(g_ArmorActive, victim) && damagebits & DMG_FALL)
 		return HAM_SUPERCEDE
 
 	// Arcane Armor only reacts while it is active
@@ -1186,7 +1225,6 @@ Armor_Activate(id)
 
 	// Glow while the armor is ready
 	fm_set_rendering(id, kRenderFxGlowShell, ARMOR_GLOW_R, ARMOR_GLOW_G, ARMOR_GLOW_B, kRenderNormal, 16)
-	client_print(id, print_center, "Arcane Armor activated")
 }
 
 // Clears the armor state and glow (the per-round counters are handled by the callers)
@@ -1242,7 +1280,7 @@ Armor_Trigger(id)
 		vVel[1] = vDir[1] * ARMOR_KNOCKBACK
 		vVel[2] = ARMOR_KNOCKUP
 
-		ExecuteHamB(Ham_TakeDamage, p, id, id, ARMOR_DAMAGE, DMG_BLAST)
+		Radius_Damage(id, id, vOrigin, ARMOR_RADIUS, ARMOR_DAMAGE, DMG_BULLET | DMG_NEVERGIB)
 
 		// The victim may have died from the blast; only push the living
 		if(is_user_alive(p))
@@ -1261,8 +1299,6 @@ Armor_Trigger(id)
 
 		set_pev(id, pev_health, floatmin(flHealth + flHeal, ARMOR_MAX_HEALTH))
 	}
-
-	client_print(id, print_center, "Arcane Armor triggered")
 }
 
 /* =============================================================================  */
@@ -1278,31 +1314,6 @@ do_EF_Back(id)
 	set_pev(ent, pev_movetype, MOVETYPE_FLY)
 	set_pev(ent, pev_solid, SOLID_NOT)
 	set_pev(ent, pev_owner, id)
-	
-	new Float:pOrigin[3], Float:pAngles[3], Float:pVel[3]
-	pev(id, pev_origin, pOrigin)
-	pev(id, pev_v_angle, pAngles)
-	pev(id, pev_velocity, pVel)
-
-	// Konversi sudut ke radian (AMXX menggunakan derajat, floatcos/floatsin butuh radian)
-	new Float:fAngle[3]
-	fAngle[0] = pAngles[0] * (M_PI / 180.0) // pitch
-	fAngle[1] = pAngles[1] * (M_PI / 180.0) // yaw
-	fAngle[2] = pAngles[2] * (M_PI / 180.0) // roll
-
-	new Float:fDistance = 30.0 // jarak ke belakang
-	new Float:fHeight   = 8.0  // tinggi tambahan
-
-	// Hitung offset arah belakang (berlawanan arah hadap player)
-	// Arah hadap player: (cos(yaw), sin(yaw))
-	// Arah belakang: (-cos(yaw), -sin(yaw))
-	pOrigin[0] -= floatcos(fAngle[1]) * fDistance
-	pOrigin[1] -= floatsin(fAngle[1]) * fDistance
-	pOrigin[2] += fHeight
-
-	set_pev(ent, pev_velocity, pVel)
-	set_pev(ent, pev_angles, pAngles)
-	engfunc(EngFunc_SetOrigin, ent, pOrigin)
 
 	set_pev(ent, pev_frame, 0.0)
 	set_pev(ent, pev_framerate, 5.0)
@@ -1310,56 +1321,65 @@ do_EF_Back(id)
 	set_pev(ent, pev_rendermode, kRenderTransAdd)
 	set_pev(ent, pev_renderamt, 255.0)
 
+	EF_Back_UpdatePosition(ent, id)
+
 	set_pev(ent, pev_nextthink, get_gametime() + EF_BACK_NEXTTHINK)
 }
 
-public Entity_Think_EF_Back(ent)
+// Keep the effect behind the owner
+EF_Back_UpdatePosition(ent, id)
 {
-	if(!IsValidPev(ent)) return FMRES_IGNORED
-	
-	new id = pev(ent, pev_owner)
-	
 	new Float:pOrigin[3], Float:pAngles[3], Float:pVel[3]
 	pev(id, pev_origin, pOrigin)
 	pev(id, pev_v_angle, pAngles)
 	pev(id, pev_velocity, pVel)
 
-	// Konversi sudut ke radian (AMXX menggunakan derajat, floatcos/floatsin butuh radian)
-	new Float:fAngle[3]
-	fAngle[0] = pAngles[0] * (M_PI / 180.0) // pitch
-	fAngle[1] = pAngles[1] * (M_PI / 180.0) // yaw
-	fAngle[2] = pAngles[2] * (M_PI / 180.0) // roll
+	// Convert degrees to radians (floatcos/floatsin expect radians)
+	new Float:flYaw = pAngles[1] * (M_PI / 180.0)
 
-	new Float:fDistance = 30.0 // jarak ke belakang
-	new Float:fHeight   = 8.0  // tinggi tambahan
+	new Float:fDistance = 30.0	// distance behind the player
+	new Float:fHeight = 8.0		// extra height
 
-	// Hitung offset arah belakang (berlawanan arah hadap player)
-	// Arah hadap player: (cos(yaw), sin(yaw))
-	// Arah belakang: (-cos(yaw), -sin(yaw))
-	pOrigin[0] -= floatcos(fAngle[1]) * fDistance
-	pOrigin[1] -= floatsin(fAngle[1]) * fDistance
+	// Facing is (cos(yaw), sin(yaw)), so behind the player is (-cos(yaw), -sin(yaw))
+	pOrigin[0] -= floatcos(flYaw) * fDistance
+	pOrigin[1] -= floatsin(flYaw) * fDistance
 	pOrigin[2] += fHeight
 
 	set_pev(ent, pev_velocity, pVel)
 	set_pev(ent, pev_angles, pAngles)
 	engfunc(EngFunc_SetOrigin, ent, pOrigin)
-	
-	new Float:fFrame; pev(ent, pev_frame, fFrame)
-	
+}
+
+public Entity_Think_EF_Back(ent)
+{
+	if(!IsValidPev(ent)) return FMRES_IGNORED
+
+	new id = pev(ent, pev_owner)
+
+	if(!is_user_alive(id))
+	{
+		set_pev(ent, pev_flags, FL_KILLME)
+		return FMRES_IGNORED
+	}
+
+	new Float:fFrame
+	pev(ent, pev_frame, fFrame)
+
 	if(fFrame >= EF_BACK_FRAMEMAX)
 	{
 		set_pev(ent, pev_flags, FL_KILLME)
 		return FMRES_IGNORED
 	}
-	
+
+	EF_Back_UpdatePosition(ent, id)
+
 	fFrame += EF_BACK_FRAME
 	set_pev(ent, pev_frame, fFrame)
-	
+
 	set_pev(ent, pev_nextthink, get_gametime() + EF_BACK_NEXTTHINK)
-	
+
 	return FMRES_IGNORED
 }
-
 
 do_ShootAoe(id)
 {
@@ -1436,8 +1456,7 @@ public do_Sphere_Ent(id)
 	set_pev(ent, pev_solid, SOLID_NOT)
 	set_pev(ent, pev_owner, id)
 	set_pev(ent, pev_frame, 0.0)
-	set_pev(ent, pev_fuser1, get_gametime() + 1.0)
-	set_pev(ent, pev_iuser1, 0)
+	set_pev(ent, pev_fuser1, get_gametime() + 1.0)	// fade in starts after this time
 	set_pev(ent, pev_scale, SPHERE_SCALE)
 	set_pev(ent, pev_rendermode, kRenderTransAdd)
 	set_pev(ent, pev_renderamt, 1.0)
@@ -1483,17 +1502,15 @@ public Entity_Think_Sphere_Projectile(ent)
 		return FMRES_HANDLED
 	}
 
-	new Float:flTimes; pev(ent, pev_fuser1, flTimes)
-	new iState; pev(ent, pev_iuser1, iState)
-	if (get_gametime() >= flTimes)
+	// Fade the sphere in after its start delay (clamped: a byte render amount above 255 wraps around)
+	new Float:flFadeStart; pev(ent, pev_fuser1, flFadeStart)
+	if (get_gametime() >= flFadeStart)
 	{
-		new Float:RenderAmt
-		pev(ent, pev_renderamt, RenderAmt)
-		if(RenderAmt < 255.0){
-			RenderAmt += 30.0
-		}
-		
-		set_pev(ent, pev_renderamt, RenderAmt)
+		new Float:flRenderAmt
+		pev(ent, pev_renderamt, flRenderAmt)
+
+		if (flRenderAmt < 255.0)
+			set_pev(ent, pev_renderamt, floatmin(flRenderAmt + 30.0, 255.0))
 	}
 
 	// Simple sprite animation
@@ -1515,11 +1532,10 @@ public Entity_Think_Sphere_Projectile(ent)
 	return FMRES_HANDLED
 }
 
-// DEFAULT AUTO TRACKING:
+// DEFAULT (no ATTACK2) = AUTO TRACKING:
 // chase an enemy inside SPHERE_DETECT_RADIUS and hit it, otherwise orbit behind the player.
 update_orbit(ent, id, slot)
 {
-	
 	new Float:origin[3]
 	pev(id, pev_origin, origin)
 
@@ -1596,7 +1612,6 @@ update_orbit(ent, id, slot)
 // and switches to chasing an enemy as soon as one comes into range.
 update_missile(ent, id, slot)
 {
-	
 	// Expire after SPHERE_LIFETIME
 	if (get_gametime() >= g_sphereLaunchTime[id][slot] + SPHERE_LIFETIME)
 	{
@@ -2013,38 +2028,53 @@ public Cvar_RightHand_Result(id, const cvar[], const value[])
 		UnSet_BitVar(g_LeftHand, id)
 }
 
+// Sprite attached to a view model attachment:
+// aiment/skin = owner, body = attachment index + 1. Animated by its own think function (time based).
 public SoulReaperFX(id, attachment, const szClassname[], const szMdl[], Float:fScale)
 {
-	if(global_get(glb_maxEntities) - engfunc(EngFunc_NumberOfEntities) < 100) return
+	if(!CanCreateEntity()) return
 
 	new ent = engfunc(EngFunc_CreateNamedEntity, engfunc(EngFunc_AllocString, "env_sprite"))
 	if(!pev_valid(ent)) return
 
-	//ent_data
+	// Entity data
 	set_pev(ent, pev_classname, szClassname)
-	set_pev(ent, pev_spawnflags, SF_SPRITE_ONCE)
+	set_pev(ent, pev_impulse, EF_FX_IMPULSE)
 	engfunc(EngFunc_SetModel, ent, szMdl)
-	
+
 	set_pev(ent, pev_owner, id)
-	set_pev(ent, pev_movetype, MOVETYPE_NONE) 
+	set_pev(ent, pev_movetype, MOVETYPE_NONE)
 	set_pev(ent, pev_solid, SOLID_NOT)
 	set_pev(ent, pev_gravity, 0.0)
 	set_pev(ent, pev_aiment, id)
 	set_pev(ent, pev_body, attachment)
 	set_pev(ent, pev_skin, id)
-	
-	//Render
+
+	// Render
 	set_pev(ent, pev_rendermode, kRenderTransAdd)
 	set_pev(ent, pev_renderamt, 255.0)
 	set_pev(ent, pev_scale, fScale)
-	
-	//frames
+
+	// Frames: no SF_SPRITE_ONCE, the sprite's own animation would turn it off at its last frame
 	set_pev(ent, pev_frame, 0.0)
-	set_pev(ent, pev_framerate, 20.0)
+	set_pev(ent, pev_framerate, 5.0)
 
 	dllfunc(DLLFunc_Spawn, ent)
-	
-	set_pev(ent, pev_nextthink, get_gametime() + 0.01) 
+
+	// fuser1 = spawn time, used for the time based frame
+	set_pev(ent, pev_fuser1, get_gametime())
+	set_pev(ent, pev_nextthink, get_gametime() + EF_FX_THINK)
+}
+
+// Remove the idle effect of this player (Deploy_Post can run more than once)
+Idle_Remove(id)
+{
+	new ent = -1
+	while((ent = engfunc(EngFunc_FindEntityByString, ent, "classname", EF_IDLE_CLS)) > 0)
+	{
+		if(pev(ent, pev_owner) == id)
+			set_pev(ent, pev_flags, FL_KILLME)
+	}
 }
 
 public Entity_Think_EF_BMode(ent)
@@ -2053,25 +2083,25 @@ public Entity_Think_EF_BMode(ent)
 
 	new id = pev(ent, pev_owner)
 
+	// The attachment belongs to the weapon's view model, so it only lives while the weapon is held
 	if(!is_user_alive(id) || !Get_BitVar(g_ActiveWpn, id) || get_user_weapon(id) != CSW_SOULREAPEREX)
 	{
 		set_pev(ent, pev_flags, FL_KILLME)
 		return
 	}
 
-	new Float:fFrame
-	pev(ent, pev_frame, fFrame)
-	fFrame += 1.0
+	new Float:flStart
+	pev(ent, pev_fuser1, flStart)
 
-	if(fFrame >= EF_B_FRAME_MAX)
+	new Float:flFrame = (get_gametime() - flStart) * EF_FX_FPS
+	if(flFrame >= float(EF_B_FRAME_MAX))
 	{
 		set_pev(ent, pev_flags, FL_KILLME)
 		return
 	}
 
-	set_pev(ent, pev_frame, fFrame)
-	
-	set_pev(ent, pev_nextthink, get_gametime() + 0.01) 
+	set_pev(ent, pev_frame, flFrame)
+	set_pev(ent, pev_nextthink, get_gametime() + EF_FX_THINK)
 }
 
 public Entity_Think_EF_Draw(ent)
@@ -2086,21 +2116,21 @@ public Entity_Think_EF_Draw(ent)
 		return
 	}
 
-	new Float:fFrame
-	pev(ent, pev_frame, fFrame)
-	fFrame += 1.0
+	new Float:flStart
+	pev(ent, pev_fuser1, flStart)
 
-	if(fFrame >= 33.0)
+	new Float:flFrame = (get_gametime() - flStart) * EF_FX_FPS
+	if(flFrame >= EF_DRAW_FRAMEMAX)
 	{
 		set_pev(ent, pev_flags, FL_KILLME)
 		return
 	}
 
-	set_pev(ent, pev_frame, fFrame)
-	
-	set_pev(ent, pev_nextthink, get_gametime() + 0.01) 
+	set_pev(ent, pev_frame, flFrame)
+	set_pev(ent, pev_nextthink, get_gametime() + EF_FX_THINK)
 }
 
+// Idle effect: loops for as long as the weapon is held, sprite follows the weapon mode
 public Entity_Think_EF_ACMode(ent)
 {
 	if(!IsValidPev(ent)) return
@@ -2112,26 +2142,24 @@ public Entity_Think_EF_ACMode(ent)
 		set_pev(ent, pev_flags, FL_KILLME)
 		return
 	}
-	
-	if(Get_BitVar(g_ActiveHelix, id))
+
+	// Swap the sprite only when the mode changes (pev_iuser1: 0 = A mode, 1 = C mode)
+	new iMode = Get_BitVar(g_ActiveHelix, id) ? 1 : 0
+	if(pev(ent, pev_iuser1) != iMode)
 	{
-		engfunc(EngFunc_SetModel, ent, EF_IDLEC_SPR)
-	}else{
-		engfunc(EngFunc_SetModel, ent, EF_IDLEA_SPR)
+		engfunc(EngFunc_SetModel, ent, iMode ? EF_IDLEC_SPR : EF_IDLEA_SPR)
+		set_pev(ent, pev_iuser1, iMode)
 	}
 
-	new Float:fFrame
-	pev(ent, pev_frame, fFrame)
-	fFrame += 1.0
+	// Looping, time based frame
+	new Float:flStart
+	pev(ent, pev_fuser1, flStart)
 
-	if(fFrame >= 44.0)
-	{
-		fFrame = 0.0
-	}
+	new Float:flFrame = (get_gametime() - flStart) * EF_FX_FPS
+	flFrame -= EF_IDLE_FRAMEMAX * float(floatround(flFrame / EF_IDLE_FRAMEMAX, floatround_floor))
 
-	set_pev(ent, pev_frame, fFrame)
-	
-	set_pev(ent, pev_nextthink, get_gametime() + 0.01) 
+	set_pev(ent, pev_frame, flFrame)
+	set_pev(ent, pev_nextthink, get_gametime() + EF_FX_THINK)
 }
 /* =============================================================================  */
 /* =============================================================================  */
