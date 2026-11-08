@@ -55,6 +55,7 @@
 #define SPHERE_SPR2 "sprites/mellowzy/ef_soulreaper_sphere02.spr"
 #define HELIX_SPR_LASER "sprites/mellowzy/ef_soulreaper_laser.spr"
 #define EF_B_SPR "sprites/mellowzy/ef_soulreaper_bmode.spr"
+#define EF_GAUGE_SPR "sprites/mellowzy/ef_soulreaper_gauge.spr"
 #define MUZZ_A_SPR "sprites/mellowzy/muzzleflash450.spr"
 #define MUZZ_C_SPR "sprites/mellowzy/muzzleflash452.spr"
 
@@ -115,6 +116,7 @@ enum
 #define SPHERE_SPR2 "sprites/mellowzy/ef_soulreaperex_sphere02.spr"
 #define HELIX_SPR_LASER "sprites/mellowzy/ef_soulreaperex_laser.spr"
 #define EF_B_SPR "sprites/mellowzy/ef_soulreaperex_bmode.spr"
+#define EF_GAUGE_SPR "sprites/mellowzy/ef_soulreaperex_gauge.spr"
 #define MUZZ_A_SPR "sprites/mellowzy/muzzleflash449.spr"
 #define MUZZ_C_SPR "sprites/mellowzy/muzzleflash453.spr"
 
@@ -193,6 +195,7 @@ enum
 #define SHOOTA_CLASSNAME "EF_Soulreaperex_aoe"
 #define MUZZLE_A_CLS "mza"
 #define MUZZLE_C_CLS "mzc"
+#define EF_GAUGE_CLAS "ef_gauge"
 
 #define EF_IDLE_CLS "ef_idle"
 #define EF_DRAW_CLS "ef_draw"
@@ -227,6 +230,13 @@ enum
 #if !defined M_PI
 	#define M_PI 3.14159265358979323846
 #endif
+
+//gauge
+#define EF_GAUGE_DISTANCE     12.0    // Distance in front of the eyes
+#define EF_GAUGE_OFFSET_DOWN  0.8     // How far below the crosshair
+#define EF_GAUGE_OFFSET_RIGHT 0.0     // Sideways offset
+#define EF_GAUGE_SCALE        0.05    // Sprite scale
+#define EF_GAUGE_THINK        0.01    // Think interval
 
 //bmode
 //ef_back
@@ -406,6 +416,8 @@ public plugin_precache()
 	util_precache_model(MUZZ_A_SPR)
 	util_precache_model(MUZZ_C_SPR)
 	util_precache_model(EF_B_SPR)
+	util_precache_model(EF_GAUGE_SPR)
+	
 	g_iExplosionSprite = util_precache_model(EXPLOSION_MDL)
 	g_iSpriteLaser = util_precache_model(HELIX_SPR_LASER)
 
@@ -570,6 +582,8 @@ ResetPlayer(id)
 	Armor_Reset(id)
 	g_ArmorUses[id] = 0
 	g_ArmorCooldownEnd[id] = 0.0
+	
+	Gauge_Remove(id)
 }
 
 SetViewModel(id)
@@ -692,6 +706,12 @@ public fw_Entity_Think(ent)
 	pev(ent, pev_classname, classname, charsmax(classname))
 
 	static iOwner; iOwner = pev(ent, pev_owner)
+	
+	if(equal(classname, EF_GAUGE_CLAS))
+	{
+		Entity_Think_EF_Gauge(ent)
+		return FMRES_SUPERCEDE
+	}
 
 	if(equal(classname, EF_BACK_CLS))
 	{
@@ -926,6 +946,8 @@ public Ham_CWeapon_Deploy_Post(ent)
 	Idle_Remove(id)
 	SoulReaperFX(id, 4, EF_IDLE_CLS, EF_IDLEA_SPR, 0.15)
 	SoulReaperFX(id, 3, EF_DRAW_CLS, EF_DRAW_SPR, 0.15)
+	
+	do_EF_Gauge(id)
 
 	set_pdata_float(ent, m_Weapon_flTimeWeaponIdle, 1.5, linux_diff_weapon)
 }
@@ -962,6 +984,7 @@ public Ham_CWeapon_Holster_Post(ent)
 
 	g_ShootCount[id] = 0
 	UTIL_SetHud(id, RESET_HUD)
+	Gauge_Remove(id)
 }
 
 public Ham_CWeapon_PostFrame_Pre(ent)
@@ -1101,7 +1124,7 @@ public Ham_CWeapon_PrimaryAttack_Post(ent)
 				do_Sphere_Ent(id)
 				SoulReaperFX(id, 3, EF_B_CLASSNAME, EF_B_SPR, 0.15)
 				do_EF_Back(id)
-
+				
 				emit_sound(id, CHAN_ITEM, SND_BALLS_APPEAR, 1.0, ATTN_NORM, 0, PITCH_NORM)
 			}
 		}
@@ -2250,6 +2273,87 @@ public Entity_Think_EF_ACMode(ent)
 
 	set_pev(ent, pev_frame, flFrame)
 	set_pev(ent, pev_nextthink, get_gametime() + EF_FX_THINK)
+}
+
+do_EF_Gauge(id)
+{
+	if(!CanCreateEntity()) return
+
+	//Gauge_Remove(id)
+
+	new ent = engfunc(EngFunc_CreateNamedEntity, engfunc(EngFunc_AllocString, "info_target"))
+	if(!pev_valid(ent)) return
+
+	set_pev(ent, pev_classname, EF_GAUGE_CLAS)
+	engfunc(EngFunc_SetModel, ent, EF_GAUGE_SPR)
+
+	set_pev(ent, pev_movetype, MOVETYPE_FOLLOW)
+	set_pev(ent, pev_solid, SOLID_NOT)
+	set_pev(ent, pev_gravity, 0.0)
+	set_pev(ent, pev_owner, id)
+	set_pev(ent, pev_body, 2)
+	set_pev(ent, pev_aiment, id)
+	set_pev(ent, pev_skin, id)
+	set_pev(ent, pev_impulse, EF_FX_IMPULSE)	// owner only, see fw_AddToFullPack_Post
+
+	set_pev(ent, pev_frame, 0.0)
+	set_pev(ent, pev_scale, EF_GAUGE_SCALE)
+	set_pev(ent, pev_rendermode, kRenderTransAdd)
+	set_pev(ent, pev_renderamt, 255.0)
+
+	//EF_Gauge_UpdatePosition(ent, id)
+	set_pev(ent, pev_nextthink, get_gametime() + EF_GAUGE_THINK)
+}
+
+EF_Gauge_UpdatePosition(ent, id)
+{
+	new Float:vEye[3], Float:vAngle[3], Float:vPunch[3], Float:vVel[3]
+	new Float:vFwd[3], Float:vRight[3], Float:vUp[3], Float:vPos[3]
+
+	UTIL_GetEyePosition(id, vEye)
+	pev(id, pev_v_angle, vAngle)
+	pev(id, pev_punchangle, vPunch)
+	pev(id, pev_velocity, vVel)
+
+	angle_vector(vAngle, ANGLEVECTOR_FORWARD, vFwd)
+	angle_vector(vAngle, ANGLEVECTOR_RIGHT, vRight)
+	angle_vector(vAngle, ANGLEVECTOR_UP, vUp)
+
+	for(new i = 0; i < 3; i++)
+		vPos[i] = vEye[i] + (vFwd[i] * EF_GAUGE_DISTANCE) + (vRight[i] * EF_GAUGE_OFFSET_RIGHT) - (vUp[i] * EF_GAUGE_OFFSET_DOWN)
+
+	engfunc(EngFunc_SetOrigin, ent, vPos)
+	set_pev(ent, pev_angles, vAngle)
+	set_pev(ent, pev_velocity, vVel)
+}
+
+Gauge_Remove(id)
+{
+	new ent = -1
+	while((ent = engfunc(EngFunc_FindEntityByString, ent, "classname", EF_GAUGE_CLAS)) > 0)
+	{
+		if(pev(ent, pev_owner) == id)
+			set_pev(ent, pev_flags, FL_KILLME)
+	}
+}
+
+public Entity_Think_EF_Gauge(ent)
+{
+	if(!IsValidPev(ent)) return
+
+	new id = pev(ent, pev_owner)
+
+	if(!is_user_alive(id) || !Get_BitVar(g_ActiveWpn, id) || get_user_weapon(id) != CSW_SOULREAPEREX)
+	{
+		set_pev(ent, pev_flags, FL_KILLME)
+		return
+	}
+
+	//EF_Gauge_UpdatePosition(ent, id)
+
+	// One frame per hovering sphere: 0 = empty ... SPHERE_MAX = full
+	set_pev(ent, pev_frame, float(min(g_sphereCount[id], SPHERE_MAX)))
+	set_pev(ent, pev_nextthink, get_gametime() + EF_GAUGE_THINK)
 }
 /* =============================================================================  */
 /* =============================================================================  */
