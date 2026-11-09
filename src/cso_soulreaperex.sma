@@ -1291,6 +1291,9 @@ CWeapon_Soulreaperex(id, ent, button)
 
 		// Launch one hovering sphere at its locked enemy (returns 0 if nothing to launch)
 		if(!launch_sphere(id)) return
+		if (!g_sphereCount[id]) return
+		
+		SoulReaperFX(id, 2, SHOOTB_CLASSNAME, EF_SHOOTB_SPR, 0.1)
 
 		util_sendweaponanim(id, Get_BitVar(g_ActiveHelix, id) ? ANIM_SHOOTC : ANIM_SHOOTBA)
 		emit_sound(id, CHAN_WEAPON, SND_SHOOTB, VOL_NORM, ATTN_NORM, 0, PITCH_NORM)
@@ -1894,8 +1897,6 @@ sphere_is_enemy(id, p)
 // Returns 1 on success, 0 if there is no sphere to launch.
 launch_sphere(id)
 {
-	SoulReaperFX(id, 2, SHOOTB_CLASSNAME, EF_SHOOTB_SPR, 0.1)
-	
 	for (new s = 0; s < g_sphereCount[id]; s++)
 	{
 		new ent = g_sphereEnt[id][s]
