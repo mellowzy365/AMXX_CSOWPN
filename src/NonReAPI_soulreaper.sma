@@ -169,18 +169,11 @@ enum
 #define SPEED_C					1.5
 #define RECOIL					0.75
 
-#define DAMAGEA					15.0
-#define DAMAGE_EXP				25.0
-#define AOE_DAMAGE 				15.0
-#define AOE_KNOCKBACK 			5.0
 #define HELIX_FRAMEMAX 			44.0
 #define HELIX_RANGE 			450.0
-#define HELIX_DAMAGE 			15.0
-#define HELIX_BEAM_DAMAGE 		15.0
 #define HELIX_BEAM_PULL 		6500.0
 #define HELIX_BEAM_RADIUS 		450.0
 #define HELIX_BEAM_LENGTH 		800.0
-#define HELIX_KNOCKBACK 		5.0
 
 #define RELOAD_TIME 			2.0
 #define CLIP 					80
@@ -366,6 +359,9 @@ new g_sphereTarget[33][SPHERE_MAX];    // Locked target per sphere (0 = none)
 new g_sphereLaunched[33][SPHERE_MAX];  // 1 = in missile mode
 new Float:g_orbitAngle[33][SPHERE_MAX];
 new Float:g_sphereLaunchTime[33][SPHERE_MAX]; // gametime when the sphere was launched
+
+//cvarlist
+new cvar_damagea, cvar_damagea2, cvar_damageb, cvar_damage_exp, cvar_damage_helix, cvar_knockback
 /* =============================================================================  */
 /* ========================== Soulreaperex_Init ============================  */
 public plugin_init()
@@ -403,7 +399,14 @@ public plugin_init()
 	RegisterHam(Ham_TakeDamage, "player", "fw_TakeDamage_Pre")
 
 	g_pcvFriendlyFire = get_cvar_pointer("mp_friendlyfire")
-
+	
+	cvar_damagea = register_cvar("sr_damage_a", "15.0")
+	cvar_damagea2 = register_cvar("sr_damage_a2", "15.0")
+	cvar_damageb = register_cvar("sr_damage_b", "15.0")
+	cvar_damage_exp = register_cvar("sr_damage_exp", "15.0")
+	cvar_damage_helix = register_cvar("sr_damage_helix", "15.0")
+	cvar_knockback = register_cvar("sr_knockback", "15.0")
+	
 	register_clcmd(WEAPON_SPR, "CSOWPN_Hook")
 	register_clcmd("get_soulreaperex", "CSOWPN_Give")
 }
@@ -861,7 +864,7 @@ public fw_Entity_Think(ent)
 			newOrigin[1] = pOrigin[1] + (fForward[1] * AOE_DISTANCE)
 			newOrigin[2] = pOrigin[2] + (fForward[2] * AOE_DISTANCE) + AOE_OFFSET_Z
 
-			Radius_Damage(iOwner, iOwner, newOrigin, AOE_RANGE, AOE_DAMAGE, DMG_BULLET | DMG_NEVERGIB)
+			Radius_Damage(iOwner, iOwner, newOrigin, AOE_RANGE, get_pcvar_float(cvar_damagea2), DMG_BULLET | DMG_NEVERGIB)
 			set_pev(ent, pev_fuser1, flTime + AOE_DAMAGE_INTERVAL)
 		}
 
@@ -963,8 +966,9 @@ public fw_TraceAttack_World(Victim, Attacker, Float:Damage, Float:Direction[3], 
 
 	Make_BulletHole(Attacker, flEnd, Damage)
 	Make_BulletSmoke(Attacker, Ptr)
-
-	SetHamParamFloat(3, random_float(DAMAGEA, DAMAGEA * 2.0))
+	
+	new Float:flDamage;flDamage = get_pcvar_float(cvar_damagea)
+	SetHamParamFloat(3, random_float(flDamage, flDamage * 2.0))
 
 	return HAM_IGNORED
 }
@@ -982,8 +986,9 @@ public fw_TraceAttack_Player(Victim, Attacker, Float:Damage, Float:Direction[3],
 
 	// Every bullet that hits an enemy charges the Arcane Armor
 	Armor_AddHit(Attacker)
-
-	SetHamParamFloat(3, random_float(DAMAGEA, DAMAGEA * 2.0))
+	
+	new Float:flDamage;flDamage = get_pcvar_float(cvar_damagea)
+	SetHamParamFloat(3, random_float(flDamage, flDamage * 2.0))
 
 	return HAM_IGNORED
 }
@@ -1845,7 +1850,7 @@ update_missile(ent, id, slot)
 		pev(ent, pev_origin, eOrigin)
 
 		Create_Explosion(eOrigin)
-		do_Sphere_Damage(id, eOrigin, SPHERE_RADIUS, DAMAGE_EXP)
+		do_Sphere_Damage(id, eOrigin, SPHERE_RADIUS, get_pcvar_float(cvar_damage_exp))
 		remove_sphere(id, slot)
 	}
 }
@@ -1858,7 +1863,7 @@ sphere_hit(ent, id, slot, target)
 
 	Create_Explosion(eOrigin)
 
-	do_Sphere_Damage(id, eOrigin, SPHERE_RADIUS, DAMAGE_EXP)
+	do_Sphere_Damage(id, eOrigin, SPHERE_RADIUS, get_pcvar_float(cvar_damage_exp))
 
 	emit_sound(ent, CHAN_ITEM, SND_SHOOTB_EXP, 1.0, ATTN_NORM, 0, PITCH_NORM)
 	remove_sphere(id, slot)
@@ -2073,7 +2078,7 @@ public do_Helix(id) {
 			vPos[2] = vSpawnOrigin[2] + vForward[2] * flOffset
 			engfunc(EngFunc_SetOrigin, helixA, vPos)
 
-			Radius_Damage(id, id, vPos, HELIX_BEAM_RADIUS, HELIX_DAMAGE, DMG_BULLET | DMG_NEVERGIB)
+			Radius_Damage(id, id, vPos, HELIX_BEAM_RADIUS, get_pcvar_float(cvar_damage_helix), DMG_BULLET | DMG_NEVERGIB)
 			OnHelixEffect(id, helixA, HELIX_RANGE, HELIX_BEAM_PULL)
 
 			set_pev(helixA, pev_angles, vBeamAngles)
@@ -2100,7 +2105,7 @@ public do_Helix(id) {
 		vPos[2] = vSpawnOrigin[2] + vForward[2] * flOffset
 		engfunc(EngFunc_SetOrigin, helixB, vPos)
 
-		Radius_Damage(id, id, vPos, HELIX_BEAM_RADIUS, HELIX_DAMAGE, DMG_BULLET | DMG_NEVERGIB)
+		Radius_Damage(id, id, vPos, HELIX_BEAM_RADIUS, get_pcvar_float(cvar_damage_helix), DMG_BULLET | DMG_NEVERGIB)
 		OnHelixEffect(id, helixB, HELIX_RANGE, HELIX_BEAM_PULL)
 
 		set_pev(helixB, pev_angles, vBeamAngles)
@@ -2145,7 +2150,7 @@ public do_Helix(id) {
 			new Float:flDistToBeam = get_distance_f(vTarget, vProj)
 
 			if (flDistToBeam <= HELIX_BEAM_RADIUS) {
-				ExecuteHamB(Ham_TakeDamage, i, id, id, HELIX_BEAM_DAMAGE, DMG_ENERGYBEAM)
+				ExecuteHamB(Ham_TakeDamage, i, id, id, get_pcvar_float(cvar_damage_helix), DMG_ENERGYBEAM)
 				new Float:vPull[3]
 				vPull[0] = vProj[0] - vTarget[0];
 				vPull[1] = vProj[1] - vTarget[1]; vPull[2] = vProj[2] - vTarget[2]
