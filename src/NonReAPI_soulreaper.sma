@@ -1,4 +1,3 @@
-
 /* ====================================== NoReAPI Version ============================  */
 #include <amxmodx>
 #include <fakemeta>
@@ -2370,30 +2369,7 @@ do_EF_Gauge(id)
 	set_pev(ent, pev_rendermode, kRenderTransAdd)
 	set_pev(ent, pev_renderamt, 255.0)
 
-	//EF_Gauge_UpdatePosition(ent, id)
 	set_pev(ent, pev_nextthink, get_gametime() + EF_GAUGE_THINK)
-}
-
-EF_Gauge_UpdatePosition(ent, id)
-{
-	new Float:vEye[3], Float:vAngle[3], Float:vPunch[3], Float:vVel[3]
-	new Float:vFwd[3], Float:vRight[3], Float:vUp[3], Float:vPos[3]
-
-	UTIL_GetEyePosition(id, vEye)
-	pev(id, pev_v_angle, vAngle)
-	pev(id, pev_punchangle, vPunch)
-	pev(id, pev_velocity, vVel)
-
-	angle_vector(vAngle, ANGLEVECTOR_FORWARD, vFwd)
-	angle_vector(vAngle, ANGLEVECTOR_RIGHT, vRight)
-	angle_vector(vAngle, ANGLEVECTOR_UP, vUp)
-
-	for(new i = 0; i < 3; i++)
-		vPos[i] = vEye[i] + (vFwd[i] * EF_GAUGE_DISTANCE) + (vRight[i] * EF_GAUGE_OFFSET_RIGHT) - (vUp[i] * EF_GAUGE_OFFSET_DOWN)
-
-	engfunc(EngFunc_SetOrigin, ent, vPos)
-	set_pev(ent, pev_angles, vAngle)
-	set_pev(ent, pev_velocity, vVel)
 }
 
 Gauge_Remove(id)
@@ -2418,9 +2394,6 @@ public Entity_Think_EF_Gauge(ent)
 		return
 	}
 
-	//EF_Gauge_UpdatePosition(ent, id)
-
-	// One frame per hovering sphere: 0 = empty ... SPHERE_MAX = full
 	set_pev(ent, pev_frame, float(min(g_sphereCount[id], SPHERE_MAX)))
 	set_pev(ent, pev_nextthink, get_gametime() + EF_GAUGE_THINK)
 }
@@ -2695,7 +2668,8 @@ stock Stock_Muzzle(iPlayer, const szcls[], const szmodel[], Float:fScale)
 	set_pev(Ent, pev_skin, iPlayer)
 	set_pev(Ent, pev_aiment, iPlayer)
 	set_pev(Ent, pev_movetype, MOVETYPE_FOLLOW)
-
+	set_pev(Ent, pev_solid, SOLID_NOT)
+	set_pev(Ent, pev_animtime, get_gametime())
 	set_pev(Ent, pev_scale, fScale)
 	set_pev(Ent, pev_frame, 0.0)
 	set_pev(Ent, pev_framerate, 5.0)
@@ -2703,6 +2677,7 @@ stock Stock_Muzzle(iPlayer, const szcls[], const szmodel[], Float:fScale)
 	set_pev(Ent, pev_renderamt, 255.0)
 
 	engfunc(EngFunc_SetModel, Ent, szmodel)
+	dllfunc(DLLFunc_Spawn, Ent)
 
 	set_pev(Ent, pev_nextthink, get_gametime() + 0.04)
 }
