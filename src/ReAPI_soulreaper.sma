@@ -169,8 +169,16 @@ enum
 
 #define DAMAGEA					15.0
 #define DAMAGE_EXP				25.0
-#define DAMAGE_AOE1				30.0
-#define DAMAGE_AOE2				35.0
+#define AOE_DAMAGE 				15.0
+#define AOE_KNOCKBACK 			5.0
+#define HELIX_FRAMEMAX 			44.0
+#define HELIX_RANGE 			450.0
+#define HELIX_DAMAGE 			15.0
+#define HELIX_BEAM_DAMAGE 		15.0
+#define HELIX_BEAM_PULL 		6500.0
+#define HELIX_BEAM_RADIUS 		450.0
+#define HELIX_BEAM_LENGTH 		800.0
+#define HELIX_KNOCKBACK 		5.0
 
 #define RELOAD_TIME 			2.0
 #define CLIP 					80
@@ -265,29 +273,20 @@ enum
 //aoe
 #define AOE_FRAMEMAX 44.0
 #define AOE_RANGE 180.0
-#define AOE_DAMAGE 15.0
-#define AOE_KNOCKBACK 5.0
 
 #define AOE_DISTANCE   40.0     // Distance in front of the player (damage center)
 #define AOE_VISUAL_DISTANCE 190.0 // Distance in front of the player where the sprite entity is placed (visual only)
 #define AOE_VISUAL_OFFSET_Z -20.0   // Vertical offset of the sprite (about -34.0 puts it near the player's feet)
 #define AOE_ANIM_FPS   30.0     // Sprite animation speed (frames per second)
 #define AOE_KILL_FRAME 14.0     // The sprite is removed once it passes this frame
-#define AOE_DAMAGE_INTERVAL 0.1 // Seconds between two damage ticks
+#define AOE_DAMAGE_INTERVAL 1.0 // Seconds between two damage ticks
 #define AOE_OFFSET_Z   -30.0    // Lower it a bit so it doesn't cover the camera
 #define AOE_MAX_FRAME  44.0     // Maximum frame of the sprite
 #define AOE_SPEED      1.5      // Animation speed per think tick
 #define AOE_THINK_RATE 0.03     // Update rate (~33 FPS)
 
 //helix
-#define HELIX_FRAMEMAX 44.0
-#define HELIX_RANGE 120.0
-#define HELIX_DAMAGE 15.0
-#define HELIX_BEAM_DAMAGE 2500.0
-#define HELIX_BEAM_PULL 6500.0
-#define HELIX_BEAM_RADIUS 150.0
-#define HELIX_BEAM_LENGTH 800.0
-#define HELIX_KNOCKBACK 5.0
+
 #define HELIX_MAX_CHARGE 110		// secondary ammo (charge) capacity
 #define HELIX_MIN_CHARGE 30	// charge needed to activate helix (full by default)
 #define HELIX_REFILL_TIME 1.5		// seconds between each refill tick
@@ -2047,6 +2046,7 @@ public do_Helix(id) {
 			engfunc(EngFunc_SetOrigin, helixA, vPos)
 
 			Radius_Damage(id, id, vPos, HELIX_BEAM_RADIUS, HELIX_DAMAGE, DMG_BULLET | DMG_NEVERGIB)
+			OnHelixEffect(id, helixA, HELIX_RANGE, HELIX_BEAM_PULL)
 
 			set_pev(helixA, pev_angles, vBeamAngles)
 			set_pev(helixA, pev_rendermode, kRenderTransAdd)
@@ -2073,6 +2073,7 @@ public do_Helix(id) {
 		engfunc(EngFunc_SetOrigin, helixB, vPos)
 
 		Radius_Damage(id, id, vPos, HELIX_BEAM_RADIUS, HELIX_DAMAGE, DMG_BULLET | DMG_NEVERGIB)
+		OnHelixEffect(id, helixB, HELIX_RANGE, HELIX_BEAM_PULL)
 
 		set_pev(helixB, pev_angles, vBeamAngles)
 		set_pev(helixB, pev_rendermode, kRenderTransAdd);
@@ -2787,6 +2788,54 @@ stock knockback(id, attacker, Float:force, Float:zBoost)
     velocity[2] = zBoost;
 
     set_pev(id, pev_velocity, velocity);
+}
+
+
+stock OnHelixEffect(id, ent, Float:fRad, Float:fPullSpeed)
+{
+	if(!pev_valid(ent)) return
+	
+	new Float:Origin[3]
+	pev(ent, pev_origin, Origin)
+	
+	new i = -1
+	while((i = engfunc(EngFunc_FindEntityInSphere, i, Origin, fRad)) != 0)
+	{
+		if(id == i) continue
+		if(pev(i, pev_takedamage) == DAMAGE_NO) continue
+		if(pev(i, pev_spawnflags) == SF_BREAK_TRIGGER_ONLY) continue
+
+		if(1 <= i <= get_maxplayers())
+		{
+			if(!is_user_alive(i)) continue
+			if(get_user_team(i) == get_user_team(id)) continue
+		}
+		
+		new Float:VictimOrigin[3]
+		pev(i, pev_origin, VictimOrigin)
+		
+		// Direction vector from victim to origin
+		new Float:Dir[3]
+		Dir[0] = Origin[0] - VictimOrigin[0]
+		Dir[1] = Origin[1] - VictimOrigin[1]
+		Dir[2] = 0.0 // keep it horizontal, don't touch Z
+		
+		new Float:fDist = vector_length(Dir)
+		if(fDist < 1.0) continue // already at origin, skip
+		
+		// Normalize direction
+		Dir[0] /= fDist
+		Dir[1] /= fDist
+		
+		new Float:Velocity[3]
+		pev(i, pev_velocity, Velocity)
+		
+		// Override horizontal velocity toward origin, keep Z so gravity still works
+		Velocity[0] = Dir[0] * fPullSpeed
+		Velocity[1] = Dir[1] * fPullSpeed
+		
+		set_pev(i, pev_velocity, Velocity)
+	}
 }
 
 /* =============================================================================  */
