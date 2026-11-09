@@ -2700,6 +2700,7 @@ stock Radius_Damage(id, inflictor, Float:vicOri[3], Float:fRadius, Float:fDamage
 		}
 
 		ExecuteHamB(Ham_TakeDamage, i, inflictor, id, fDamage, dmgbits)
+		knockback(i, id, 5.0, 5.0)
 	}
 }
 
@@ -2773,6 +2774,51 @@ stock Create_Explosion(Float:origin[3], iScale = 10, iFramerate = 15)
 
 stock bool:CanCreateEntity() {
 	return (global_get(glb_maxEntities) - engfunc(EngFunc_NumberOfEntities) >= 100)
+}
+
+stock knockback(id, attacker, Float:force, Float:zBoost)
+{
+    if (!is_user_alive(id))
+        return;
+
+    new Float:velocity[3];
+    pev(id, pev_velocity, velocity);
+
+    // Compute horizontal direction from attacker to victim
+    new Float:dir[3];
+    if (attacker && is_user_alive(attacker))
+    {
+        new Float:originA[3], Float:originV[3];
+        pev(id, pev_origin, originV);
+        pev(attacker, pev_origin, originA);
+        dir[0] = originV[0] - originA[0];
+        dir[1] = originV[1] - originA[1];
+        dir[2] = 0.0;
+    }
+    else
+    {
+        // Fallback: push along victim's view direction
+        new Float:angles[3];
+        pev(id, pev_angles, angles);
+        dir[0] = floatcos(angles[1], degrees);
+        dir[1] = floatsin(angles[1], degrees);
+        dir[2] = 0.0;
+    }
+
+    // Normalize direction
+    new Float:len = floatsqroot(dir[0]*dir[0] + dir[1]*dir[1]);
+    if (len > 0.0)
+    {
+        dir[0] /= len;
+        dir[1] /= len;
+    }
+
+    // Apply new velocity
+    velocity[0] += dir[0] * force;
+    velocity[1] += dir[1] * force;
+    velocity[2] = zBoost;
+
+    set_pev(id, pev_velocity, velocity);
 }
 
 /* =============================================================================  */
