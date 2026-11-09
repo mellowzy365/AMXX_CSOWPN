@@ -56,12 +56,14 @@
 #define HELIX_SPR_LASER "sprites/mellowzy/ef_soulreaper_laser.spr"
 #define EF_B_SPR "sprites/mellowzy/ef_soulreaper_bmode.spr"
 #define EF_GAUGE_SPR "sprites/mellowzy/ef_soulreaper_gauge.spr"
-#define MUZZ_A_SPR "sprites/mellowzy/muzzleflash450.spr"
-#define MUZZ_C_SPR "sprites/mellowzy/muzzleflash452.spr"
+#define MUZZ_A_SPR "sprites/mellowzy/muzzleflash356.spr"
+#define MUZZ_C_SPR "sprites/mellowzy/muzzleflash361.spr"
 
 #define EF_DRAW_SPR "sprites/mellowzy/ef_soulreaper_draw.spr"
 #define EF_IDLEA_SPR "sprites/mellowzy/ef_soulreaper_amode.spr"
 #define EF_IDLEC_SPR "sprites/mellowzy/ef_soulreaper_cmode.spr"
+#define EF_RELOAD_SPR "sprites/mellowzy/muzzleflash357.spr"
+#define EF_SHOOTB_SPR "sprites/mellowzy/muzzleflash359.spr"
 
 #define SMOKE_SPR "sprites/wall_puff1.spr"
 
@@ -123,6 +125,8 @@ enum
 #define EF_DRAW_SPR "sprites/mellowzy/ef_soulreaperex_draw.spr"
 #define EF_IDLEA_SPR "sprites/mellowzy/ef_soulreaperex_amode.spr"
 #define EF_IDLEC_SPR "sprites/mellowzy/ef_soulreaperex_cmode.spr"
+#define EF_RELOAD_SPR "sprites/mellowzy/muzzleflash450.spr"
+#define EF_SHOOTB_SPR "sprites/mellowzy/muzzleflash452.spr"
 
 #define SMOKE_SPR "sprites/wall_puff1.spr"
 
@@ -192,13 +196,15 @@ enum
 //Classnames
 #define SPHERE_CLASSNAME "EF_Soulreaperex_sphere"
 #define HELIX_CLASSNAME "EF_Soulreaperex_helix"
-#define SHOOTA_CLASSNAME "EF_Soulreaperex_aoe"
-#define MUZZLE_A_CLS "mza"
-#define MUZZLE_C_CLS "mzc"
-#define EF_GAUGE_CLAS "ef_gauge"
+#define MUZZLE_A_CLS "EF_Soulreaperex_muzzleflashA"
+#define MUZZLE_C_CLS "EF_Soulreaperex_muzzleflashC"
+#define EF_GAUGE_CLAS "EF_Soulreaperex_gauge"
 
-#define EF_IDLE_CLS "ef_idle"
-#define EF_DRAW_CLS "ef_draw"
+#define EF_IDLE_CLS "EF_Soulreaperex_idle"
+#define EF_DRAW_CLS "EF_Soulreaperex_draw"
+#define EF_RELOAD_CLASSNAME "EF_Soulreaperex_reloadef"
+#define SHOOTA_CLASSNAME "EF_Soulreaperex_aoe"
+#define SHOOTB_CLASSNAME "EF_Soulreaperex_shootb"
 
 #if !defined EF_NOINTERP
 	#define EF_NOINTERP         32
@@ -416,6 +422,8 @@ public plugin_precache()
 	util_precache_model(MUZZ_A_SPR)
 	util_precache_model(MUZZ_C_SPR)
 	util_precache_model(EF_B_SPR)
+	util_precache_model(EF_RELOAD_SPR)
+	util_precache_model(EF_SHOOTB_SPR)
 	util_precache_model(EF_GAUGE_SPR)
 	
 	g_iExplosionSprite = util_precache_model(EXPLOSION_MDL)
@@ -862,6 +870,64 @@ public fw_Entity_Think(ent)
 
 		return FMRES_IGNORED
 	}
+	
+	if(equal(classname, SHOOTB_CLASSNAME))
+	{
+		if(!is_user_alive(iOwner) || get_user_weapon(iOwner) != CSW_SOULREAPEREX)
+		{
+			set_pev(ent, pev_flags, FL_KILLME)
+			return FMRES_IGNORED
+		}
+
+		static iActiveItem; iActiveItem = get_pdata_cbase(iOwner, 373, 5)
+		if(!IsValidPev(iActiveItem))
+		{
+			set_pev(ent, pev_flags, FL_KILLME)
+			return FMRES_IGNORED
+		}
+
+		static Float:Frame; pev(ent, pev_frame, Frame)
+		if(Frame > 22.0)
+		{
+			set_pev(ent, pev_flags, FL_KILLME)
+			return FMRES_IGNORED
+		}
+
+		Frame += 1.5
+		set_pev(ent, pev_frame, Frame)
+		set_pev(ent, pev_nextthink, get_gametime() + 0.04)
+
+		return FMRES_IGNORED
+	}
+	
+	if(equal(classname, EF_RELOAD_CLASSNAME))
+	{
+		if(!is_user_alive(iOwner) || get_user_weapon(iOwner) != CSW_SOULREAPEREX)
+		{
+			set_pev(ent, pev_flags, FL_KILLME)
+			return FMRES_IGNORED
+		}
+
+		static iActiveItem; iActiveItem = get_pdata_cbase(iOwner, 373, 5)
+		if(!IsValidPev(iActiveItem))
+		{
+			set_pev(ent, pev_flags, FL_KILLME)
+			return FMRES_IGNORED
+		}
+
+		static Float:Frame; pev(ent, pev_frame, Frame)
+		if(Frame > 43.0)
+		{
+			set_pev(ent, pev_flags, FL_KILLME)
+			return FMRES_IGNORED
+		}
+
+		Frame += 1.5
+		set_pev(ent, pev_frame, Frame)
+		set_pev(ent, pev_nextthink, get_gametime() + 0.04)
+
+		return FMRES_IGNORED
+	}
 
 	return FMRES_IGNORED
 }
@@ -1063,6 +1129,7 @@ public Ham_CWeapon_Reload_Post(ent)
 		g_ShootCount[id] = 0
 
 	util_sendweaponanim(id, Get_BitVar(g_ActiveHelix, id) ? ANIM_RELOADC : ANIM_RELOADA)
+	SoulReaperFX(id, 3, EF_RELOAD_CLASSNAME, EF_RELOAD_SPR, 0.15)
 
 	return HAM_IGNORED
 }
@@ -1827,6 +1894,8 @@ sphere_is_enemy(id, p)
 // Returns 1 on success, 0 if there is no sphere to launch.
 launch_sphere(id)
 {
+	SoulReaperFX(id, 2, SHOOTB_CLASSNAME, EF_SHOOTB_SPR, 0.1)
+	
 	for (new s = 0; s < g_sphereCount[id]; s++)
 	{
 		new ent = g_sphereEnt[id][s]
